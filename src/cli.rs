@@ -26,14 +26,15 @@ fn parse_as_file(p: PathBuf) -> Result<PathBuf, &'static str> {
     }
 }
 
-// fn parse_path<F: Fn(&PathBuf) -> bool>(p: PathBuf, cond: F, err_msg: &'static str) -> Result<PathBuf, &'static str>{
-//     if cond(&p) {
-//         Ok(p)
-//     } else {
-//         Err(err_msg)
-//     }
-// }
-
+/*
+fn parse_path<F: Fn(&PathBuf) -> bool>(p: PathBuf, cond: F, err_msg: &'static str) -> Result<PathBuf, &'static str>{
+    if cond(&p) {
+        Ok(p)
+    } else {
+        Err(err_msg)
+    }
+}
+*/
 
 #[derive(Parser)]
 #[command(version, about = "CLI tool for fetching images from destinypedia.com", long_about = None)]
@@ -42,7 +43,7 @@ pub struct CLI {
     cmd: Commands, // destinypedia-get [fetch | download] ...
 
     #[command(flatten)]
-    page_input: Pages
+    page_input: Pages,
 }
 
 #[derive(Subcommand)]
@@ -72,10 +73,15 @@ pub struct Pattern {
     all: bool,
 
     #[arg(long, value_name = "[img1, img2, ...]")]
-    images: Vec<String>,
+    images: Vec<String>
 
-    #[arg(long = "images-input", value_name = "IMAGES_INPUT_FILE", value_parser = PathBufValueParser::new().try_map(parse_as_file), help = "Line seperated text file that contains targeted image name(s)")]
-    images_input: PathBuf // --images-input /home/meep/img_names.txt
+    #[arg(
+        long = "images-input",
+        value_name = "IMAGES_INPUT_FILE",
+        value_parser = PathBufValueParser::new().try_map(parse_as_file),
+        help = "Line seperated text file that contains targeted image name(s)"
+    )]
+    images_input: PathBuf, // --images-input /home/meep/img_names.txt
 }
 
 #[derive(Args)]
@@ -89,10 +95,10 @@ pub struct Pages {
 
     #[arg(
         value_name = "PAGES_INPUT_FILE",
-        long = "input-file", 
-        short = 'i', 
-        value_parser = PathBufValueParser::new().try_map(parse_as_file), 
-        help = "Line seperated text file that contains page name(s)")]
+        long = "input-file",
+        short = 'i',
+        value_parser = PathBufValueParser::new().try_map(parse_as_file),
+        help = "Line seperated text file that contains page name(s)"
+    )]
     page_file: PathBuf, // --input-file [-i] /home/meep/target_pages.txt
 }
-
