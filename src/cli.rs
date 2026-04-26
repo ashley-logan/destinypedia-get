@@ -1,9 +1,3 @@
-/*
-   cat api.php\?action\=query\&titles\=File\:Dire_Taken_Concept_1.jpg\&prop\=imageinfo\&iiprop\=url\&format\=json
-{"batchcomplete":"","query":{"normalized":[{"from":"File:Dire_Taken_Concept_1.jpg","to":"File:Dire Taken Concept 1.jpg"}],
-"pages":{"50985":{"pageid":50985,"ns":6,"title":"File:Dire Taken Concept 1.jpg","imagerepository":"local",
-"imageinfo":[{"url":"https://destiny.wiki.gallery/images/9/96/Dire_Taken_Concept_1.jpg","descriptionurl":"https://www.destinypedia.com/File:Dire_Taken_Concept_1.jpg","descriptionshorturl":"https://www.destinypedia.com/index.php?curid=50985"}]}}}}
-*/
 use clap::{
     Args, Parser, Subcommand,
     builder::{PathBufValueParser, TypedValueParser},
@@ -73,7 +67,7 @@ pub struct Pattern {
     all: bool,
 
     #[arg(long, value_name = "[img1, img2, ...]")]
-    images: Vec<String>
+    images: Vec<String>,
 
     #[arg(
         long = "images-input",
@@ -101,4 +95,51 @@ pub struct Pages {
         help = "Line seperated text file that contains page name(s)"
     )]
     page_file: PathBuf, // --input-file [-i] /home/meep/target_pages.txt
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::{NamedTempFile, TempDir};
+
+    #[test]
+    fn test_parse_dir_success() {
+        let dir = TempDir::new().unwrap();
+        let pbuf: PathBuf = PathBuf::from(dir.path());
+
+        assert!(parse_as_dir(pbuf).is_ok())
+    }
+
+    #[test]
+    fn test_parse_dir_fail() {
+        let not_dir = NamedTempFile::new().unwrap();
+        let pbuf: PathBuf = PathBuf::from(not_dir.path());
+
+        assert!(parse_as_dir(pbuf).is_err())
+    }
+
+    #[test]
+    fn test_parse_file_success() {
+        let f = NamedTempFile::new().unwrap();
+        let pbuf: PathBuf = PathBuf::from(f.path());
+
+        assert!(parse_as_file(pbuf).is_ok())
+    }
+
+    #[test]
+    fn test_parse_file_fail_1() {
+        let not_file: TempDir = TempDir::new().unwrap();
+        let pbuf: PathBuf = PathBuf::from(not_file.path());
+
+        assert!(parse_as_file(pbuf).is_err())
+    }
+
+    #[test]
+    fn test_parse_file_fail_2() {
+        let f = NamedTempFile::new().unwrap();
+        let mut pbuf = PathBuf::from(f.path());
+        pbuf.push("non-existent-file");
+
+        assert!(parse_as_file(pbuf).is_err())
+    }
 }
