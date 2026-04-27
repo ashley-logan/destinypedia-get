@@ -1,3 +1,5 @@
+mod error;
+use error::Result;
 use serde::{Deserialize, Serialize};
 
 mod query {
@@ -5,15 +7,19 @@ mod query {
 
     #[derive(Debug, Serialize)]
     pub struct Query {
+        #[serde(skip_serializing_if = "Option::is_none")]
         titles: Option<Vec<String>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         pageids: Option<Vec<u16>>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         prop: Option<self::Prop>,
+        #[serde(skip_serializing_if = "Option::is_none")]
         list: Option<self::List>,
     }
 
     #[derive(Debug, Serialize, PartialEq)]
     #[serde(rename_all = "lowercase")]
-    enum Prop {
+    pub(super) enum Prop {
         Info,
         PageImages,
         Images,
@@ -22,7 +28,7 @@ mod query {
     }
     #[derive(Debug, Serialize, PartialEq)]
     #[serde(rename_all = "lowercase")]
-    enum List {
+    pub(super) enum List {
         AllImages,
         AllLinks,
         AllPages,
@@ -34,47 +40,70 @@ mod query {
                 titles: None,
                 pageids: None,
                 prop: None,
-                list: None
+                list: None,
             }
         }
 
+        fn validate(&self) -> super::Result<()> {
+            // make sure either titles or pageids is initialized with data
+            match (&self.titles, &self.pageids) {
+                (None, None) => return Err(error::Error::Args),
+                (Some(v), None) => {
+                    if v.is_empty() {
+                        return Err(error::Error::Args);
+                    }
+                }
+                (None, Some(v)) => {
+                    if v.is_empty() {
+                        return Err(error::Error::Args);
+                    }
+                }
+                _ => (),
+            };
+
+            // make sure exactly one of prop or list is initialized with data
+            match (&self.prop, &self.list) {
+                (Some(_), Some(_)) => Err(error::Error::Args), // error since neither prop nor list take priority
+                (None, None) => Err(error::Error::Args),
+                _ => Ok(()),
+            }
+        }
     }
 
     impl Query {
-        fn titles<T, U>(mut self, titles: T) -> Self 
-        where 
+        pub fn titles<T, U>(mut self, titles: T) -> Self
+        where
             T: IntoIterator<Item = U>,
-            U: AsRef<str>
+            U: AsRef<str>,
         {
             self.titles = Some(titles.into_iter().map(|s| s.as_ref().to_string()).collect());
             self
         }
 
-        fn pageids<T>(mut self, pageids: T) -> Self 
-        where 
+        pub fn pageids<T>(mut self, pageids: T) -> Self
+        where
             T: IntoIterator<Item = u16>,
         {
             self.pageids = Some(pageids.into_iter().collect());
             self
         }
 
-        fn prop(mut self, prop: self::Prop) -> Self {
+        pub fn prop(mut self, prop: self::Prop) -> Self {
             self.prop = Some(prop);
             self
         }
 
-        fn list(mut self, list: self::List) -> Self {
+        pub fn list(mut self, list: self::List) -> Self {
             self.list = Some(list);
             self
         }
-
     }
 }
 
 mod parse {
     use super::*;
     #[derive(Debug, Serialize)]
-    pub struct Parse {
+    pub(super) struct Parse {
         pageid: u16,
         page: String,
         prop: Prop,
@@ -82,7 +111,7 @@ mod parse {
 
     #[derive(Debug, Serialize, PartialEq)]
     #[serde(rename_all = "lowercase")]
-    enum Prop {
+    pub(super) enum Prop {
         Images,
         TocData,
     }
@@ -121,9 +150,9 @@ enum Format {
 
 pub trait ActionType: Serialize {
     fn new() -> Self;
-}
 
-impl ActionType for parse::Parse {}
+    fn validate(&self) -> Result<()>;
+}
 
 #[derive(Debug, Serialize)]
 pub struct URL<T: ActionType> {
@@ -137,10 +166,25 @@ pub struct URL<T: ActionType> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::to_value;
     #[test]
-    fn test_query_serialize() {
-        let q = query::Query {
-            titles
-        }
+    fn test_query_serialize_success1() {
+        let q = query::Query::new()
+            .titles(&["Example title", "Another example title"])
+            .prop(query::Prop::Categories);
+        let val = to_value(q);
+
+        assert!(val.is_ok());
+    }
+
+    #[test]
+    fn test_query_serialize_fail1() {
+        let q = query::Query::new()
+            .titles(&["Example title", "Another example title"])
+            .prop(query::Prop::Categories)
+            .list(query::List::AllLinks);
+
+        todo!("Force validate function to run to qualify for serialization");
+        let val = to_value(q);
     }
 }
