@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn test_validate_func_fail1() {
         // should fail because both prop and list are initialized
-        let q = construct_unvalidated_query().list(List::AllLinks);
+        let q = construct_unvalidated_query().list(List::AllCategories);
         assert!(q.validate().is_err())
     }
 

@@ -35,5 +35,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_fetch_json1() {}
+    async fn test_fetch_json1() {
+        let params = construct_validated_params();
+        
+    }
 }
