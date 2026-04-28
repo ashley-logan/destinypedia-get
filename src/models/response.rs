@@ -5,15 +5,14 @@ pub struct ListResponse {
     batchcomplete: String,
     #[serde(rename = "continue")]
     cont: Option<Continue>,
-    query: ListResults,
+    query: ListItems,
 }
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 struct Continue {
     #[serde(rename = "continue")]
     contin: String,
-    apcontinue: Option<String>,
-    aicontinue: Option<String>,
-    accontinue: Option<String>,
+    #[serde(flatten)]
+    sub_cont: SubContinue,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -25,10 +24,11 @@ enum SubContinue {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
-struct ListResults {
-    allimages: Option<Vec<ImageItem>>,
-    allcategories: Option<Vec<CategoryItem>>,
-    allpages: Option<Vec<PageItem>>,
+#[serde(rename_all = "lowercase")]
+enum ListItems {
+    Allimages(Option<Vec<ImageItem>>),
+    Allcategories(Option<Vec<CategoryItem>>),
+    Allpages(Option<Vec<PageItem>>),
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -94,26 +94,20 @@ mod tests {
             batchcomplete: "".to_string(),
             cont: Some(Continue {
                 contin: "-||".to_string(),
-                aicontinue: Some("((STEEL_MEDULLA~)).jpg".to_string()),
-                accontinue: None,
-                apcontinue: None,
+                sub_cont: SubContinue::AiContinue("((STEEL_MEDULLA~)).jpg".to_string()),
             }),
-            query: ListResults {
-                allimages: Some(vec![ImageItem {
-                    name: "'Act_on_Instinct'.png".to_string(),
-                    timestamp: "2024-07-02T13:45:06Z".to_string(),
-                    url: "https://destiny.wiki.gallery/images/7/76/%27Act_on_Instinct%27.png"
-                        .to_string(),
-                    descriptionurl: "https://www.destinypedia.com/File:%27Act_on_Instinct%27.png"
-                        .to_string(),
-                    descriptionshorturl: "https://www.destinypedia.com/index.php?curid=44354"
-                        .to_string(),
-                    ns: 6_u32,
-                    title: "File:'Act on Instinct'.png".to_string(),
-                }]),
-                allcategories: None,
-                allpages: None,
-            },
+            query: ListItems::Allimages(Some(vec![ImageItem {
+                name: "'Act_on_Instinct'.png".to_string(),
+                timestamp: "2024-07-02T13:45:06Z".to_string(),
+                url: "https://destiny.wiki.gallery/images/7/76/%27Act_on_Instinct%27.png"
+                    .to_string(),
+                descriptionurl: "https://www.destinypedia.com/File:%27Act_on_Instinct%27.png"
+                    .to_string(),
+                descriptionshorturl: "https://www.destinypedia.com/index.php?curid=44354"
+                    .to_string(),
+                ns: 6_u32,
+                title: "File:'Act on Instinct'.png".to_string(),
+            }])),
         }
     }
 
