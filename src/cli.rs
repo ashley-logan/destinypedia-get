@@ -4,6 +4,7 @@ use clap::{
 };
 use std::path::PathBuf;
 
+// helper function for path directory validation
 fn parse_as_dir(p: PathBuf) -> Result<PathBuf, &'static str> {
     if p.is_dir() {
         Ok(p)
@@ -12,6 +13,7 @@ fn parse_as_dir(p: PathBuf) -> Result<PathBuf, &'static str> {
     }
 }
 
+// helper function for path file validation
 fn parse_as_file(p: PathBuf) -> Result<PathBuf, &'static str> {
     if p.is_file() {
         Ok(p)
@@ -19,16 +21,6 @@ fn parse_as_file(p: PathBuf) -> Result<PathBuf, &'static str> {
         Err("Input file must exist")
     }
 }
-
-/*
-fn parse_path<F: Fn(&PathBuf) -> bool>(p: PathBuf, cond: F, err_msg: &'static str) -> Result<PathBuf, &'static str>{
-    if cond(&p) {
-        Ok(p)
-    } else {
-        Err(err_msg)
-    }
-}
-*/
 
 #[derive(Parser)]
 #[command(version, about = "CLI tool for fetching images from destinypedia.com", long_about = None)]

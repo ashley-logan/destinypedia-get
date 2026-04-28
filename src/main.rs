@@ -1,10 +1,6 @@
 use clap::Parser;
 
-mod cli;
-mod error;
-mod get;
-
-use cli::*;
+use destiny_fetch::CLI;
 fn main() {
     let _cli: CLI = CLI::parse();
 }
