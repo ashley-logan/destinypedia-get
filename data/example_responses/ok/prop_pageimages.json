@@ -1,0 +1,18 @@
+{
+    "batchcomplete": "",
+    "query": {
+        "pages": {
+            "1034": {
+                "pageid": 1034,
+                "ns": 0,
+                "title": "Hive",
+                "thumbnail": {
+                    "source": "https://destiny.wiki.gallery/images/thumb/b/b4/Grimoire_The_Hive.jpg/38px-Grimoire_The_Hive.jpg",
+                    "width": 38,
+                    "height": 50
+                },
+                "pageimage": "Grimoire_The_Hive.jpg"
+            }
+        }
+    }
+}

@@ -41,6 +41,7 @@ pub enum Prop {
     Images,
     ImageInfo,
     Categories,
+    FileUsage,
 }
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]

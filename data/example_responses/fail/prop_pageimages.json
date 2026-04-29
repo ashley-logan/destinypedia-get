@@ -1,0 +1,18 @@
+{
+    "batchcomplete": "",
+    "query": {
+        "normalized": [
+            {
+                "from": "heve",
+                "to": "Heve"
+            }
+        ],
+        "pages": {
+            "-1": {
+                "ns": 0,
+                "title": "Heve",
+                "missing": ""
+            }
+        }
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "batchcomplete": "",
+    "query": {
+        "pages": {
+            "1034": {
+                "pageid": 1034,
+                "ns": 0,
+                "title": "Hive",
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Articles needing cleanup"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Articles needing fact cleanup"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Articles under construction"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Enemies"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Hive"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Paracausal entities"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Species"
+                    }
+                ]
+            }
+        }
+    }
+}

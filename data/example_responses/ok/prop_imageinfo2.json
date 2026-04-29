@@ -1,0 +1,24 @@
+{
+    "batchcomplete": "",
+    "query": {
+        "pages": {
+            "39300": {
+                "pageid": 39300,
+                "ns": 6,
+                "title": "File:Clash of the Hive Gods.jpg",
+                "imagerepository": "local",
+                "imageinfo": [
+                    {
+                        "size": 523694,
+                        "width": 3840,
+                        "height": 2160,
+                        "canonicaltitle": "File:Clash of the Hive Gods.jpg",
+                        "url": "https://destiny.wiki.gallery/images/f/f7/Clash_of_the_Hive_Gods.jpg",
+                        "descriptionurl": "https://www.destinypedia.com/File:Clash_of_the_Hive_Gods.jpg",
+                        "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=39300"
+                    }
+                ]
+            }
+        }
+    }
+}

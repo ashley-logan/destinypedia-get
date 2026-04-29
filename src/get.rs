@@ -23,20 +23,19 @@ async fn fetch_json(params: PARAMS<query::Query>) -> reqwest::Result<Client> {
     todo!()
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{ErrorFormat, Format, PARAMS, query};
+// #[cfg(test)]
+// mod tests {
+//     use crate::{ErrorFormat, Format, PARAMS, query};
 
-    fn construct_validated_params() -> PARAMS<query::Query> {
-        PARAMS::new()
-            .list(query::List::AllImages)
-            .validate()
-            .unwrap()
-    }
+//     fn construct_validated_params() -> PARAMS<query::Query> {
+//         PARAMS::new()
+//             .list(query::List::AllImages)
+//             .validate()
+//             .unwrap()
+//     }
 
-    #[tokio::test]
-    async fn test_fetch_json1() {
-        let params = construct_validated_params();
-        
-    }
-}
+//     #[tokio::test]
+//     async fn test_fetch_json1() {
+//         let params = construct_validated_params();
+//     }
+// }

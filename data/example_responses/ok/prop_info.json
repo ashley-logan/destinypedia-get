@@ -1,0 +1,19 @@
+{
+    "batchcomplete": "",
+    "query": {
+        "pages": {
+            "1034": {
+                "pageid": 1034,
+                "ns": 0,
+                "title": "Hive",
+                "contentmodel": "wikitext",
+                "pagelanguage": "en",
+                "pagelanguagehtmlcode": "en",
+                "pagelanguagedir": "ltr",
+                "touched": "2026-04-12T04:03:19Z",
+                "lastrevid": 390101,
+                "length": 220921
+            }
+        }
+    }
+}
