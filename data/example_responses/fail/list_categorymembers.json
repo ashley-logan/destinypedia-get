@@ -1,0 +1,9 @@
+{
+    "batchcomplete": "",
+    "limits": {
+        "categorymembers": 500
+    },
+    "query": {
+        "categorymembers": []
+    }
+}

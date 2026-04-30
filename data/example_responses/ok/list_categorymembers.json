@@ -1,0 +1,136 @@
+{
+    "batchcomplete": "",
+    "limits": {
+        "categorymembers": 500
+    },
+    "query": {
+        "categorymembers": [
+            {
+                "pageid": 7258,
+                "ns": 0,
+                "title": "April Update",
+                "type": "page"
+            },
+            {
+                "pageid": 20794,
+                "ns": 0,
+                "title": "Beyond Light",
+                "type": "page"
+            },
+            {
+                "pageid": 648,
+                "ns": 0,
+                "title": "Comet",
+                "type": "page"
+            },
+            {
+                "pageid": 11515,
+                "ns": 0,
+                "title": "Curse of Osiris",
+                "type": "page"
+            },
+            {
+                "pageid": 14435,
+                "ns": 0,
+                "title": "Forsaken",
+                "type": "page"
+            },
+            {
+                "pageid": 2824,
+                "ns": 0,
+                "title": "House of Wolves (expansion)",
+                "type": "page"
+            },
+            {
+                "pageid": 20799,
+                "ns": 0,
+                "title": "Lightfall",
+                "type": "page"
+            },
+            {
+                "pageid": 53515,
+                "ns": 2,
+                "title": "User:Natxeula/deprecated/Renegades",
+                "type": "page"
+            },
+            {
+                "pageid": 26107,
+                "ns": 0,
+                "title": "New Light",
+                "type": "page"
+            },
+            {
+                "pageid": 53574,
+                "ns": 0,
+                "title": "Renegades",
+                "type": "page"
+            },
+            {
+                "pageid": 7509,
+                "ns": 0,
+                "title": "Rise of Iron",
+                "type": "page"
+            },
+            {
+                "pageid": 17432,
+                "ns": 0,
+                "title": "Shadowkeep",
+                "type": "page"
+            },
+            {
+                "pageid": 2823,
+                "ns": 0,
+                "title": "The Dark Below",
+                "type": "page"
+            },
+            {
+                "pageid": 48699,
+                "ns": 0,
+                "title": "The Edge of Fate",
+                "type": "page"
+            },
+            {
+                "pageid": 28188,
+                "ns": 0,
+                "title": "The Final Shape",
+                "type": "page"
+            },
+            {
+                "pageid": 4798,
+                "ns": 0,
+                "title": "The Taken King",
+                "type": "page"
+            },
+            {
+                "pageid": 20796,
+                "ns": 0,
+                "title": "The Witch Queen",
+                "type": "page"
+            },
+            {
+                "pageid": 13295,
+                "ns": 0,
+                "title": "Warmind (expansion)",
+                "type": "page"
+            },
+            {
+                "pageid": 39175,
+                "ns": 14,
+                "title": "Category:Episodes",
+                "type": "subcat"
+            },
+            {
+                "pageid": 56295,
+                "ns": 14,
+                "title": "Category:Years",
+                "type": "subcat"
+            },
+            {
+                "pageid": 20161,
+                "ns": 14,
+                "title": "Category:Seasons",
+                "type": "subcat"
+            }
+        ]
+    }
+}

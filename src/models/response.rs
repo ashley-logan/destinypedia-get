@@ -2,10 +2,9 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct ListResponse {
-    batchcomplete: String,
     #[serde(rename = "continue")]
-    cont: Option<Continue>,
-    query: ListItems,
+    pub cont: Option<Continue>,
+    pub query: ListItems,
 }
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 struct Continue {
@@ -21,15 +20,19 @@ enum SubContinue {
     ApContinue(String),
     AiContinue(String),
     AcContinue(String),
+    CmContinue(String),
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 enum ListItems {
-    Allimages(Option<Vec<ImageItem>>),
-    Allcategories(Option<Vec<CategoryItem>>),
-    Allpages(Option<Vec<PageItem>>),
+    Allimages(Vec<ImageItem>),
+    Allcategories(Vec<CategoryItem>),
+    Allpages(Vec<PageItem>),
+    CategoryMembers(Vec<CmItem>),
 }
+
+pub trait Item<'de>: Deserialize<'de> + PartialEq + Eq {}
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 struct ImageItem {
@@ -54,6 +57,15 @@ struct PageItem {
     title: String,
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+struct CmItem {
+    pageid: u32,
+    ns: u32,
+    title: String,
+    #[serde(rename = "type")]
+    type_: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,7 +73,6 @@ mod tests {
 
     fn get_serialized() -> serde_json::Value {
         json!({
-            "batchcomplete": "",
             "continue": {
                 "aicontinue": "((STEEL_MEDULLA~)).jpg",
                 "continue": "-||"
@@ -91,12 +102,11 @@ mod tests {
 
     fn get_structified() -> ListResponse {
         ListResponse {
-            batchcomplete: "".to_string(),
             cont: Some(Continue {
                 contin: "-||".to_string(),
                 sub_cont: SubContinue::AiContinue("((STEEL_MEDULLA~)).jpg".to_string()),
             }),
-            query: ListItems::Allimages(Some(vec![ImageItem {
+            query: ListItems::Allimages(vec![ImageItem {
                 name: "'Act_on_Instinct'.png".to_string(),
                 timestamp: "2024-07-02T13:45:06Z".to_string(),
                 url: "https://destiny.wiki.gallery/images/7/76/%27Act_on_Instinct%27.png"
@@ -107,7 +117,7 @@ mod tests {
                     .to_string(),
                 ns: 6_u32,
                 title: "File:'Act on Instinct'.png".to_string(),
-            }])),
+            }]),
         }
     }
 
