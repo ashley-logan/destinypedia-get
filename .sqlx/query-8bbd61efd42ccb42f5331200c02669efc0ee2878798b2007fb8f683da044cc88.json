@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            CREATE TABLE IF NOT EXISTS page_images (\n                page_id INTEGER NOT NULL,\n                image_id INTEGER NOT NULL,\n                FOREIGN KEY (page_id) REFERENCES page(id),\n                FOREIGN KEY (image_id) REFERENCES images(id)\n\n            )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "8bbd61efd42ccb42f5331200c02669efc0ee2878798b2007fb8f683da044cc88"
+}

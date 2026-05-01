@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            CREATE TABLE IF NOT EXISTS subcategories (\n                category_id INTEGER NOT NULL,\n                subcategory_id INTEGER NOT NULL,\n                FOREIGN KEY (category_id) REFERENCES categories(id),\n                FOREIGN KEY (subcategory_id) REFERENCES categories(id)\n\n            )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "35c41cc237c0e2c96e18329d5a98f7d2efef8fdf0e2f29ce594006d25dde57ba"
+}

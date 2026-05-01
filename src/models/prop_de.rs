@@ -51,10 +51,6 @@ enum SubContinue {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct Images {
-    images: 
-}
-#[derive(Debug, Deserialize, PartialEq, Eq)]
 struct ImageItem {
     ns: u32,
     title: String,
@@ -62,7 +58,7 @@ struct ImageItem {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct ImageInfo {
-    imageinfo: Vec<ImageInfoItem>
+    imageinfo: Vec<ImageInfoItem>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -77,7 +73,7 @@ struct ImageInfoItem {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Categories {
-    categories: Vec<CategoryItem>
+    categories: Vec<CategoryItem>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -88,7 +84,7 @@ struct CategoryItem {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PageImages {
-    pageimages: Vec<PageImageItem>
+    pageimages: Vec<PageImageItem>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]

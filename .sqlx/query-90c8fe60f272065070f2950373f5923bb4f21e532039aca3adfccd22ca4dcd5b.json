@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            CREATE TABLE IF NOT EXISTS pages (\n                id INTEGER PRIMARY KEY,\n                name TEXT NOT NULL\n            )\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "90c8fe60f272065070f2950373f5923bb4f21e532039aca3adfccd22ca4dcd5b"
+}

@@ -1,4 +1,5 @@
 mod cli;
+mod database;
 mod get;
 mod models;
 mod prebuilt;
@@ -28,3 +29,9 @@ pub enum NAMESPACE {
     GRIMOIRE = 100,
     FORUM = 110,
 }
+
+/*
+action=query&list=search&srsearch=zavala&srnamespace=100&srlimit=max&srwhat=txt&srprop=titlesnippet|sectionsnippet|sectiontitle|size|timestamp&srsort=just_match&format=jsonfm
+action=opensearch&search=hive&namespace=0&limit=max&profile=normal-subphrases&format=jsonfm
+action=query&list=categorymembers&cmtitle=Category:Grimoire&cmprop=title|ids|sortkeyprefix|type&cmlimit=max&format=jsonfm
+*/
