@@ -12,6 +12,10 @@ pub trait ActionType: Serialize {
         false
     }
 
+    fn has_generator(&self) -> bool {
+        false
+    }
+
     fn validate(self) -> Result<Self>
     where
         Self: Sized;
@@ -35,6 +39,10 @@ impl ActionType for Query {
 
     fn has_prop(&self) -> bool {
         self.prop.is_some()
+    }
+
+    fn has_generator(&self) -> bool {
+        todo!();
     }
 
     fn validate(self) -> Result<Self> {

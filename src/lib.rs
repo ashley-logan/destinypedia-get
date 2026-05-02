@@ -4,6 +4,7 @@ mod get;
 mod models;
 mod prebuilt;
 pub use cli::CLI;
+pub use models::deserialize;
 pub use models::error::{Error, Result};
 pub use models::params::{Action, ErrorFormat, Format, PARAMS};
 pub use models::parse;
