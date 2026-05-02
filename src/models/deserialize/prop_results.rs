@@ -1,12 +1,8 @@
-use crate::models::deserialize::items;
+use crate::{deserialize::items::Item, models::deserialize::items};
 use serde::Deserialize;
 
-pub trait PropResults {}
-
-macro_rules! impl_prop_results {
-    ($ty:ty) => {
-        impl PropResults for $ty {}
-    };
+pub trait PropResults {
+    fn all_empty(&self) -> bool;
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -14,21 +10,33 @@ pub struct ImageInfo {
     pub imageinfo: Vec<items::ImageInfoItem>,
 }
 
-impl_prop_results!(ImageInfo);
+impl PropResults for ImageInfo {
+    fn all_empty(&self) -> bool {
+        self.imageinfo.is_empty() || self.imageinfo.iter().all(items::ImageInfoItem::is_empty)
+    }
+}
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct CategoryInfo {
     pub categoryinfo: items::CatgeoryInfoItem,
 }
 
-impl_prop_results!(CategoryInfo);
+impl PropResults for CategoryInfo {
+    fn all_empty(&self) -> bool {
+        self.categoryinfo.is_empty()
+    }
+}
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Categories {
     pub categories: Vec<items::CategoryItem>,
 }
 
-impl_prop_results!(Categories);
+impl PropResults for Categories {
+    fn all_empty(&self) -> bool {
+        self.categories.is_empty() || self.categories.iter().all(items::CategoryItem::is_empty)
+    }
+}
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PageImages {
@@ -36,22 +44,32 @@ pub struct PageImages {
     pub pageimages: items::PageImageItem,
 }
 
-impl_prop_results!(PageImages);
-
+impl PropResults for PageImages {
+    fn all_empty(&self) -> bool {
+        self.pageimages.is_empty()
+    }
+}
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct Images {
     pub images: Vec<items::ImageItem>,
 }
 
-impl_prop_results!(Images);
-
+impl PropResults for Images {
+    fn all_empty(&self) -> bool {
+        self.images.is_empty() || self.images.iter().all(items::ImageItem::is_empty)
+    }
+}
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct PageInfo {
     #[serde(flatten)]
     pub pageinfo: items::PageInfoItem,
 }
 
-impl_prop_results!(PageInfo);
+impl PropResults for PageInfo {
+    fn all_empty(&self) -> bool {
+        self.pageinfo.is_empty()
+    }
+}
 
 #[cfg(test)]
 mod tests {
