@@ -1,0 +1,192 @@
+{
+    "batchcomplete": "",
+    "continue": {
+        "gaccontinue": "Ahamkara/Rising",
+        "continue": "gaccontinue||"
+    },
+    "query": {
+        "pages": {
+            "50116": {
+                "pageid": 50116,
+                "ns": 14,
+                "title": "Category:ARG",
+                "categoryinfo": {
+                    "size": 3,
+                    "pages": 3,
+                    "files": 0,
+                    "subcats": 0
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Lore"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Promotional material"
+                    }
+                ]
+            },
+            "31963": {
+                "pageid": 31963,
+                "ns": 14,
+                "title": "Category:Abilities",
+                "categoryinfo": {
+                    "size": 4,
+                    "pages": 2,
+                    "files": 0,
+                    "subcats": 2
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Gameplay mechanics"
+                    }
+                ]
+            },
+            "5473": {
+                "pageid": 5473,
+                "ns": 14,
+                "title": "Category:Activities",
+                "categoryinfo": {
+                    "size": 161,
+                    "pages": 145,
+                    "files": 4,
+                    "subcats": 12
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Gameplay mechanics"
+                    }
+                ]
+            },
+            "53011": {
+                "pageid": 53011,
+                "ns": 14,
+                "title": "Category:Activities/Rising",
+                "categoryinfo": {
+                    "size": 1,
+                    "pages": 0,
+                    "files": 0,
+                    "subcats": 1
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Gameplay mechanics/Rising"
+                    }
+                ]
+            },
+            "31976": {
+                "pageid": 31976,
+                "ns": 14,
+                "title": "Category:Activity fan fiction",
+                "categoryinfo": {
+                    "size": 43,
+                    "pages": 43,
+                    "files": 0,
+                    "subcats": 0
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Fan Fiction"
+                    }
+                ]
+            },
+            "9758": {
+                "pageid": 9758,
+                "ns": 14,
+                "title": "Category:Administration",
+                "categoryinfo": {
+                    "size": 5,
+                    "pages": 0,
+                    "files": 0,
+                    "subcats": 5
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Destinypedia"
+                    }
+                ]
+            },
+            "13105": {
+                "pageid": 13105,
+                "ns": 14,
+                "title": "Category:Adventures",
+                "categoryinfo": {
+                    "size": 54,
+                    "pages": 54,
+                    "files": 0,
+                    "subcats": 0
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Activities"
+                    }
+                ]
+            },
+            "2156": {
+                "pageid": 2156,
+                "ns": 14,
+                "title": "Category:Advertisements",
+                "categoryinfo": {
+                    "size": 1,
+                    "pages": 0,
+                    "files": 1,
+                    "subcats": 0
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Promotional material"
+                    }
+                ]
+            },
+            "22914": {
+                "pageid": 22914,
+                "ns": 14,
+                "title": "Category:Aeronautics of China employees",
+                "categoryinfo": {
+                    "size": 19,
+                    "pages": 19,
+                    "files": 0,
+                    "subcats": 0
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Golden Age characters"
+                    }
+                ]
+            },
+            "15056": {
+                "pageid": 15056,
+                "ns": 14,
+                "title": "Category:Ahamkara",
+                "categoryinfo": {
+                    "size": 71,
+                    "pages": 70,
+                    "files": 0,
+                    "subcats": 1
+                },
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Paracausal entities"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Species"
+                    }
+                ]
+            }
+        }
+    },
+    "limits": {
+        "categories": 500
+    }
+}

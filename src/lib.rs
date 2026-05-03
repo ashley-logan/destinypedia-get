@@ -1,15 +1,12 @@
 mod cli;
 mod database;
-mod get;
+// mod get;
 mod models;
 mod prebuilt;
 pub use cli::CLI;
 pub use models::deserialize;
 pub use models::error::{Error, Result};
-pub use models::params::{Action, ErrorFormat, Format, PARAMS};
 pub use models::parse;
-pub use models::query;
-pub use models::traits::ActionType;
 pub use prebuilt::{category_members, image_info, images, page_images};
 
 pub enum NAMESPACE {
