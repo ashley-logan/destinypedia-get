@@ -5,10 +5,14 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4.6.1", features = ["unstable-doc", "cargo", "derive"] }
+derive_more = { version = "2.1.1", features = ["display"] }
 dirs = "6.0.0"
 reqwest = { version = "0.13.2", features = ["json", "query", "blocking" ] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
+serde_test = "1.0.177"
+serde_with = { version = "3.19.0", features = ["guide"] }
+serde_with_macros = "3.19.0"
 sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio", "macros"] }
 thiserror = "2.0.18"
 tokio = { version = "1.52.1", features = ["rt", "macros", "full"] }

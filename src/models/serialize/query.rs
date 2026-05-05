@@ -1,135 +1,184 @@
-use crate::ActionType;
-use serde::{Serialize, ser::SerializeStruct};
+use super::NAMESPACE;
+use super::ser_types::ListString;
+use derive_more::Display;
+use serde::Serialize;
+use serde_with;
+use serde_with_macros::{apply, serde_as, skip_serializing_none};
 
-#[derive(Debug, PartialEq, Eq)]
+#[skip_serializing_none]
+#[apply(
+    Option<Vec<_>> => #[serde_as(as = "Option<ListString>")]
+)]
+#[derive(Debug, Serialize, PartialEq, Eq, Default)]
+#[serde(tag = "action", rename_all = "lowercase")]
 pub struct Query {
-    pub(crate) titles: Option<Vec<String>>,
-    pub(crate) pageids: Option<Vec<u16>>,
-    pub(crate) prop: Option<self::Prop>,
-    pub(crate) list: Option<self::List>,
+    pub titles: Option<Vec<String>>,
+    pub pageids: Option<Vec<usize>>,
+    pub prop: Option<Vec<Prop>>,
+    #[serde(flatten)]
+    pub generator: Option<Generator>,
+    #[serde(flatten)]
+    pub cont: Option<(String, String)>,
 }
 
-impl Serialize for Query {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut state = serializer.serialize_struct("Query", 4)?;
-
-        if let Some(l) = &self.list {
-            state.serialize_field("list", l)?;
-            return state.end();
-        }
-
-        if let Some(ids) = &self.pageids {
-            state.serialize_field("pageids", ids)?;
-        } else if let Some(ts) = &self.titles {
-            state.serialize_field("titles", ts)?;
-        }
-
-        state.serialize_field("prop", &self.prop)?;
-
-        state.end()
-    }
-}
-
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, PartialEq, Eq, Display)]
 #[serde(rename_all = "lowercase")]
+#[display(rename_all = "lowercase")]
 pub enum Prop {
     Info,
     PageImages,
     Images,
     ImageInfo,
     Categories,
+    CategoryInfo,
     FileUsage,
 }
+
+serde_with::serde_conv!(
+    #[doc = "Serialize and deserialize Category strings"]
+    CategoryString,
+    String,
+    |s: &String| {
+        if !s.starts_with("Category:") {
+            format!("Category:{}", s)
+        } else {
+            s.to_string()
+        }
+    },
+    |value: String| -> Result<_, std::convert::Infallible> { Ok(value) }
+);
+
+#[serde_as]
+#[skip_serializing_none]
 #[derive(Debug, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
-pub enum List {
-    AllImages,
-    AllPages,
-    AllCategories,
-}
-
-impl Query {
-    pub fn titles<T, U>(mut self, titles: T) -> Self
-    where
-        T: IntoIterator<Item = U>,
-        U: AsRef<str>,
-    {
-        self.titles = Some(titles.into_iter().map(|s| s.as_ref().to_string()).collect());
-        self
-    }
-
-    pub fn pageids(mut self, pageids: &[u16]) -> Self {
-        self.pageids = Some(pageids.to_vec());
-        self
-    }
-
-    pub fn prop(mut self, prop: self::Prop) -> Self {
-        self.prop = Some(prop);
-        self
-    }
-
-    pub fn list(mut self, list: self::List) -> Self {
-        self.list = Some(list);
-        self
-    }
+#[serde(tag = "generator", rename_all = "lowercase")]
+pub enum Generator {
+    AllImages {
+        #[serde_as(as = "Option<ListString>")]
+        gaiprop: Option<Vec<Prop>>,
+        gaiprefix: Option<String>,
+        gailimit: Option<usize>,
+    },
+    AllPages {
+        #[serde_as(as = "Option<ListString>")]
+        gapnamespace: Option<Vec<NAMESPACE>>,
+        gaplimit: Option<usize>,
+    },
+    AllCategories {
+        gacprefix: Option<String>,
+        gacmin: Option<usize>,
+        gacmax: Option<usize>,
+        gaclimit: Option<usize>,
+    },
+    CategoryMembers {
+        gcmtitle: String,
+        #[serde_as(as = "Option<ListString>")]
+        gcmprop: Option<Vec<Prop>>,
+        #[serde_as(as = "Option<ListString>")]
+        gcmnamespace: Option<Vec<NAMESPACE>>,
+    },
+    Random,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use serde_json::{json, to_value};
+    use serde_test::{Token, assert_ser_tokens};
 
-    fn construct_unvalidated_query() -> Query {
-        Query::new()
-            .titles(&["Example title", "Another example title"])
-            .pageids(&[1333, 892, 999])
-            .prop(Prop::Categories)
-    }
+    #[test]
+    fn test_generator_success() {
+        let g = Generator::CategoryMembers {
+            gcmtitle: "Category:Test".into(),
+            gcmprop: Some(vec![Prop::Categories]),
+            gcmnamespace: Some(vec![NAMESPACE::CATEGORY, NAMESPACE::PAGE]),
+        };
 
-    fn construct_valid_query() -> Query {
-        construct_unvalidated_query().validate().unwrap()
+        assert_ser_tokens(
+            &g,
+            &[
+                Token::Struct {
+                    name: "Generator",
+                    len: 4,
+                },
+                Token::Str("generator"),
+                Token::Str("categorymembers"),
+                Token::Str("gcmtitle"),
+                Token::Str("Category:Test"),
+                Token::Str("gcmprop"),
+                Token::Some,
+                Token::Str("categories"),
+                Token::Str("gcmnamespace"),
+                Token::Some,
+                Token::Str("14|0"),
+                Token::StructEnd,
+            ],
+        );
     }
 
     #[test]
-    fn test_validate_func_success() {
-        assert!(construct_unvalidated_query().validate().is_ok())
+    fn test_query_success() {
+        let q = Query {
+            titles: Some(vec!["simpleTitle".into(), "anotherOne".into()]),
+            pageids: None,
+            prop: Some(vec![Prop::Info, Prop::CategoryInfo, Prop::ImageInfo]),
+            generator: None,
+            cont: None,
+        };
+
+        assert_ser_tokens(
+            &q,
+            &[
+                Token::Map { len: None },
+                Token::Str("action"),
+                Token::Str("Query"),
+                Token::Str("titles"),
+                Token::Some,
+                Token::Str("simpleTitle|anotherOne"),
+                Token::Str("pageids"),
+                Token::None,
+                Token::Str("prop"),
+                Token::Some,
+                Token::Str("info|categoryinfo|imageinfo"),
+                Token::Str("generator"),
+                Token::None,
+                Token::Str("cont"),
+                Token::None,
+                Token::MapEnd,
+            ],
+        );
     }
 
-    #[test]
-    fn test_validate_func_fail1() {
-        // should fail because both prop and list are initialized
-        let q = construct_unvalidated_query().list(List::AllCategories);
-        assert!(q.validate().is_err())
-    }
+    // use linked_hash_map::LinkedHashMap;
+    // use serde_test::{Token, assert_tokens};
 
-    #[test]
-    fn test_validate_func_fail2() {
-        // should fail because both titles and pageids are empty
-        let q = construct_unvalidated_query()
-            .titles::<Vec<_>, &str>(vec![])
-            .pageids(&[]);
+    // #[test]
+    // fn test_ser_de_empty() {
+    //     let map = LinkedHashMap::<char, u32>::new();
 
-        assert!(q.validate().is_err())
-    }
+    //     assert_tokens(&map, &[
+    //         Token::Map { len: Some(0) },
+    //         Token::MapEnd,
+    //     ]);
+    // }
 
-    #[test]
-    fn test_query_serialize_success1() {
-        let val = to_value(construct_valid_query());
-        assert!(val.is_ok());
-    }
+    // #[test]
+    // fn test_ser_de() {
+    //     let mut map = LinkedHashMap::new();
+    //     map.insert('b', 20);
+    //     map.insert('a', 10);
+    //     map.insert('c', 30);
 
-    #[test]
-    fn test_query_serialize_success2() {
-        let val = to_value(construct_valid_query()).unwrap();
+    //     assert_tokens(&map, &[
+    //         Token::Map { len: Some(3) },
+    //         Token::Char('b'),
+    //         Token::I32(20),
 
-        let expected = json!({
-            "pageids": [1333, 892, 999],
-            "prop": "categories"
-        });
+    //         Token::Char('a'),
+    //         Token::I32(10),
 
-        assert_eq!(val, expected);
-    }
+    //         Token::Char('c'),
+    //         Token::I32(30),
+    //         Token::MapEnd,
+    //     ]);
+    // }
 }

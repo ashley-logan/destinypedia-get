@@ -1,8 +1,12 @@
 use crate::models::deserialize::de_helpers::*;
 use crate::models::deserialize::prop_results::*;
 use crate::models::deserialize::query::*;
-use serde::Deserialize;
+use serde::de::Deserialize;
 use std::collections::HashMap;
+
+pub trait ResponseTrait {
+    fn get_continue_param(&self) -> Option<(&str, &str)>;
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Response<T: PropResults> {
@@ -31,7 +35,7 @@ impl<'de> Deserialize<'de> for IndiscriminateResponse {
     }
 }
 
-impl IndiscriminateResponse {
+impl ResponseTrait for IndiscriminateResponse {
     fn get_continue_param(&self) -> Option<(&str, &str)> {
         if let Some(c) = &self.cont {
             for (k, v) in &c.sub_cont {
@@ -42,8 +46,10 @@ impl IndiscriminateResponse {
         }
         None
     }
+}
 
-    fn get_results(&self) -> &HashMap<String, IndiscriminateQueryResult> {
+impl IndiscriminateResponse {
+    pub fn get_results(&self) -> &HashMap<String, IndiscriminateQueryResult> {
         &self.results
     }
 }
@@ -76,8 +82,8 @@ impl<'de, T: PropResults + Deserialize<'de>> Deserialize<'de> for Response<T> {
     }
 }
 
-impl<T: PropResults> Response<T> {
-    pub fn get_continue_param(&self) -> Option<(&str, &str)> {
+impl<T: PropResults> ResponseTrait for Response<T> {
+    fn get_continue_param(&self) -> Option<(&str, &str)> {
         if let Some(c) = &self.cont {
             for (k, v) in &c.sub_cont {
                 if k.ends_with("continue") {
@@ -89,7 +95,9 @@ impl<T: PropResults> Response<T> {
             None
         }
     }
+}
 
+impl<T: PropResults> Response<T> {
     pub fn get_results(&self) -> Option<&HashMap<String, QueryResult<T>>> {
         if let Some(q) = &self.query {
             if let Some(map) = &q.pages {

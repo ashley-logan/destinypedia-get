@@ -21,8 +21,11 @@ DATABASE SCHEMA
     maybe: GRIMOIRE
 */
 
+use crate::models::deserialize::response::{IndiscriminateResponse, Response};
+use reqwest::Client;
+
 // action=query&generator=allimages&gailimit=max&gaisort=name&gaiprop=url|size|timestamp&prop=imageinfo&iiprop=url|size|dimensions|timestamp
-async fn fetch_images(gaicontinue: String) {
+async fn fetch_images(client: Client, gaicontinue: String) {
     let params = json!({
         "action": "query",
         "format": "json",
