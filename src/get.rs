@@ -20,7 +20,7 @@ fn get_client() -> Client {
 }
 
 pub async fn get<T: ResponseTrait + DeserializeOwned>(
-    params: &mut PARAMS<query::Query>,
+    params: &mut PARAMS,
 ) -> error::Result<Vec<T>> {
     let client: Client = get_client();
     let mut more: bool = true; // more results to get

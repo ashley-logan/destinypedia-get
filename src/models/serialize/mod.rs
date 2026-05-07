@@ -8,11 +8,17 @@ use std::fmt;
 
 impl fmt::Display for NAMESPACE {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", *self as u8)
+        write!(f, "{}", *self as u16)
     }
 }
 
-#[repr(u8)]
+impl Into<String> for NAMESPACE {
+    fn into(self) -> String {
+        (self as u16).to_string()
+    }
+}
+
+#[repr(u16)]
 #[derive(Debug, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
 pub enum NAMESPACE {
     PAGE = 0,

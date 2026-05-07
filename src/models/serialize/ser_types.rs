@@ -1,23 +1,69 @@
+use serde::Serialize;
+use serde_with::ser::SerializeAs;
 use std::fmt::Display;
 
-use super::NAMESPACE;
-use super::query::Prop;
-use serde_with::ser::SerializeAs;
+/// This trait describes an mediaWiki Api 'action' (e.g. query, parse, opensearch)
+/// The type implemnting this trait contains all action-specific parameters for that action
+/// The trait extends Default and serde::Serialize
+pub trait Action: Default + Serialize {}
+
+impl Action for super::query::Query {}
+
+/// This struct should never be used directly and only exists as
+/// an interface for converting mulit-item strings to proper
+/// mediaWiki format ('|' = seperator) via SerializeAs
+pub(super) struct ListString;
 
 impl<T: Display> SerializeAs<Vec<T>> for ListString {
     fn serialize_as<S>(source: &Vec<T>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        let arr: Vec<String> = source.iter().map(|x| x.to_string()).collect();
+        let v: Vec<String> = source.into_iter().map(|x| x.to_string()).collect();
 
-        let s: String = arr.join(r"|");
-
-        serializer.serialize_str(s.as_str())
+        serializer.serialize_str(v.join(r"|").as_str())
     }
 }
 
-pub struct ListString;
+impl<T: Display> SerializeAs<[T]> for ListString {
+    fn serialize_as<S>(source: &[T], serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let v: Vec<String> = source.iter().map(|x| x.to_string()).collect();
+
+        serializer.serialize_str(v.join(r"|").as_str())
+    }
+}
+
+/// Enum that represents a value of any limit parameter
+/// Per mediaWiki Api, can be either a number between [0, 500] or "max"
+/// Any number larger than 500 will be serialized as "max"
+/// Defaults to 50
+#[derive(Debug, Copy, Clone, derive_more::Eq, derive_more::PartialEq)]
+pub enum Limit {
+    Num(u16),
+    Max,
+}
+
+impl Serialize for Limit {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Limit::Max => serializer.serialize_str("max"),
+            Limit::Num(n) if *n <= 500 => serializer.serialize_u16(*n),
+            _ => serializer.serialize_str("max"),
+        }
+    }
+}
+
+impl Default for Limit {
+    fn default() -> Self {
+        Limit::Num(50_u16)
+    }
+}
 
 #[cfg(test)]
 mod tests {
