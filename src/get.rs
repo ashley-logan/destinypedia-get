@@ -7,33 +7,30 @@
 
 use crate::models::deserialize::response::ResponseTrait;
 use crate::models::error;
-use crate::models::serialize::{PARAMS, query};
+use crate::models::serialize::{PARAMS, query::Query};
 
 use reqwest::{Client, Request};
 use serde::de::DeserializeOwned;
 
-static USER_AGENT: &str = "DESTINY_FETCHER";
-static BASE: &str = "https://destinypedia/api.php";
+const USER_AGENT: &'static str = "DESTINY_FETCHER";
+const BASE: &'static str = "https://www.destinypedia.com/api.php";
 
 fn get_client() -> Client {
     Client::builder().user_agent(USER_AGENT).build().unwrap()
 }
 
 pub async fn get<T: ResponseTrait + DeserializeOwned>(
-    params: &mut PARAMS,
+    params: &mut PARAMS<Query>,
 ) -> error::Result<Vec<T>> {
     let client: Client = get_client();
     let mut more: bool = true; // more results to get
     let mut responses: Vec<T> = vec![];
 
     while more {
-        let (client, r) = client.get(BASE).query(&params).build_split();
-        let req: Request = r?;
-
-        let resp: T = client.execute(req).await?.json().await?;
+        let resp: T = client.get(BASE).query(&params).send().await?.json().await?;
 
         if let Some((ck, cv)) = resp.get_continue_param() {
-            params.set_continue(ck, cv);
+            params.update_continue(ck.into(), cv.into());
         } else {
             more = false;
         }

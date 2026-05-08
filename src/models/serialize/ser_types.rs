@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize, ser::SerializeMap};
 use serde_with::ser::SerializeAs;
 use std::fmt::Display;
 
@@ -13,6 +13,8 @@ impl Action for super::query::Query {}
 /// an interface for converting mulit-item strings to proper
 /// mediaWiki format ('|' = seperator) via SerializeAs
 pub(super) struct ListString;
+
+pub struct ContinueStruct;
 
 impl<T: Display> SerializeAs<Vec<T>> for ListString {
     fn serialize_as<S>(source: &Vec<T>, serializer: S) -> Result<S::Ok, S::Error>
@@ -36,6 +38,18 @@ impl<T: Display> SerializeAs<[T]> for ListString {
     }
 }
 
+impl<T: AsRef<str>> SerializeAs<(T, T)> for ContinueStruct {
+    fn serialize_as<S>(source: &(T, T), serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(1))?;
+        map.serialize_entry(source.0.as_ref(), source.1.as_ref())?;
+
+        map.end()
+    }
+}
+
 /// Enum that represents a value of any limit parameter
 /// Per mediaWiki Api, can be either a number between [0, 500] or "max"
 /// Any number larger than 500 will be serialized as "max"
@@ -53,7 +67,7 @@ impl Serialize for Limit {
     {
         match self {
             Limit::Max => serializer.serialize_str("max"),
-            Limit::Num(n) if *n <= 500 => serializer.serialize_u16(*n),
+            Limit::Num(n) if *n <= 500 => serializer.serialize_str((*n).to_string().as_str()),
             _ => serializer.serialize_str("max"),
         }
     }
@@ -68,7 +82,7 @@ impl Default for Limit {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::serialize::{NAMESPACE, query::Prop};
+    use crate::models::serialize::{NAMESPACE, Prop};
     use serde::Serialize;
     use serde_test::{Token, assert_ser_tokens};
     use serde_with_macros::serde_as;

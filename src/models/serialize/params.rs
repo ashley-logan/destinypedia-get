@@ -1,12 +1,15 @@
-use super::query::{Generator, Prop, Query};
+use super::Prop;
+use super::query::{Generator, Query};
 use super::ser_types::Action;
 use crate::{Error, Result};
 use derive_more::Display;
 use serde::Serialize;
-use serde_with_macros::skip_serializing_none;
+use serde_json::{Map, Value};
+use serde_with::{DisplayFromStr, serde_as};
+use std::marker::PhantomData;
 
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Display, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, derive_more::PartialEq, derive_more::Eq, Display, Default)]
+#[display(rename_all = "lowercase")]
 pub enum ErrorFormat {
     PlainText,
     WikiText,
@@ -17,8 +20,8 @@ pub enum ErrorFormat {
     BC,
 }
 
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Display, Default)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, derive_more::PartialEq, derive_more::Eq, Display, Default)]
+#[display(rename_all = "lowercase")]
 pub enum Format {
     #[default]
     Json,
@@ -33,33 +36,43 @@ pub enum Format {
 
 pub struct ParamsBuilder<T: Action> {
     params: T,
-    continue_: Option<(String, String)>,
     format: Option<Format>,
+    extra: Option<Map<String, Value>>,
 }
 
-#[skip_serializing_none]
+#[serde_as]
 #[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Default)]
-pub struct PARAMS {
+pub struct PARAMS<T: Action> {
     #[serde(flatten)]
     params: serde_json::Value,
-    #[serde(flatten)]
-    continue_: Option<(String, String)>,
+    #[serde_as(as = "DisplayFromStr")]
     format: Format,
+    #[serde(skip)]
+    action_marker: PhantomData<T>,
 }
 
-impl PARAMS {
-    pub fn build<T: Action>() -> ParamsBuilder<T> {
+impl<T: Action> PARAMS<T> {
+    pub fn build() -> ParamsBuilder<T> {
         ParamsBuilder::new()
     }
+}
 
-    pub fn set_continue(&mut self, cont_key: &str, cont_value: &str) {
-        if let Some((ck, cv)) = &mut self.continue_ {
-            ck.clear();
-            cv.clear();
-            ck.push_str(cont_key);
-            cv.push_str(cont_value);
+impl PARAMS<Query> {
+    pub fn update_continue(&mut self, cont_key: String, cont_value: String) -> Option<String> {
+        if let Some(obj) = self.params.as_object_mut() {
+            obj.insert(cont_key, cont_value.into())
+                .map(|v| v.to_string())
         } else {
-            self.continue_ = Some((cont_key.to_string(), cont_value.to_string()));
+            None
+        }
+    }
+
+    pub fn remove_continue(&mut self, cont_key: &str) -> Option<String> {
+        if let Some(obj) = self.params.as_object_mut() {
+            obj.remove_entry(cont_key)
+                .map(|(_, v)| return v.to_string())
+        } else {
+            None
         }
     }
 }
@@ -68,29 +81,26 @@ impl<T: Action> ParamsBuilder<T> {
     pub fn new() -> Self {
         Self {
             params: T::default(),
-            continue_: None,
             format: None,
+            extra: None,
         }
     }
 
-    pub fn build(self) -> Result<PARAMS> {
+    pub fn build(self) -> Result<PARAMS<T>> {
         let mut val = serde_json::to_value(self.params)?;
         if let Some(obj) = val.as_object_mut() {
             if obj.contains_key("pageids") && obj.contains_key("titles") {
                 obj.remove_entry("titles");
             }
+            if let Some(extra) = self.extra {
+                obj.extend(extra.into_iter());
+            }
         }
         Ok(PARAMS {
             params: val,
-            continue_: self.continue_,
             format: self.format.unwrap_or_default(),
+            action_marker: PhantomData,
         })
-    }
-
-    pub fn with_continue(mut self, ckey: impl Into<String>, cval: impl Into<String>) -> Self {
-        self.continue_ = Some((ckey.into(), cval.into()));
-
-        self
     }
 
     pub fn with_format(mut self, format_: Format) -> Self {
@@ -98,30 +108,41 @@ impl<T: Action> ParamsBuilder<T> {
         self
     }
 
-    pub fn set_continue_value(&mut self, cval: impl Into<String>) -> Result<()> {
-        if let Some(tup) = &mut self.continue_ {
-            tup.1 = cval.into();
-            Ok(())
-        } else {
-            Err(Error::Params)
-        }
-    }
-
-    pub fn set_continue_key(&mut self, ckey: impl Into<String>) -> Result<()> {
-        if let Some(tup) = &mut self.continue_ {
-            tup.0 = ckey.into();
-            Ok(())
-        } else {
-            Err(Error::Params)
-        }
-    }
-
-    pub fn set_continue(&mut self, ckey: impl Into<String>, cval: impl Into<String>) {
-        self.continue_ = Some((ckey.into(), cval.into()));
-    }
-
     pub fn set_format(&mut self, format_: Format) {
         self.format = Some(format_);
+    }
+
+    pub fn with_extra(mut self, key: impl Into<String>, val: impl Into<Value>) -> Self {
+        self.extra
+            .get_or_insert_with(Map::new)
+            .insert(key.into(), val.into());
+        self
+    }
+
+    pub fn with_extras(
+        mut self,
+        extras: impl IntoIterator<Item = (impl Into<String>, impl Into<Value>)>,
+    ) -> Self {
+        let map = extras.into_iter().map(|(k, v)| (k.into(), v.into()));
+        self.extra.get_or_insert_with(Map::new).extend(map);
+        self
+    }
+
+    pub fn extend_extras(
+        &mut self,
+        extras: impl IntoIterator<Item = (impl Into<String>, impl Into<Value>)>,
+    ) {
+        self.extra
+            .get_or_insert_with(Map::new)
+            .extend(extras.into_iter().map(|(k, v)| (k.into(), v.into())));
+    }
+
+    pub fn append_extra(&mut self, key: String, vals: impl IntoIterator<Item = impl Into<String>>) {
+        let val: Vec<String> = vals.into_iter().map(|x| x.into()).collect();
+        let s: String = val.join(r"|");
+        self.extra
+            .get_or_insert_with(Map::new)
+            .insert(key, s.into());
     }
 }
 
@@ -140,6 +161,12 @@ impl ParamsBuilder<Query> {
     /// Preferred for a builder-style interface
     pub fn with_pageids(mut self, pageids_: impl IntoIterator<Item = impl Into<u32>>) -> Self {
         self.params.pageids = Some(pageids_.into_iter().map(Into::into).collect());
+
+        self
+    }
+
+    pub fn with_continue(mut self, ckey: impl Into<String>, cval: impl Into<String>) -> Self {
+        self.params.cont = Some((ckey.into(), cval.into()));
 
         self
     }
@@ -191,6 +218,28 @@ impl ParamsBuilder<Query> {
         self.params.generator = Some(generator_);
     }
 
+    pub fn set_continue_value(&mut self, cval: impl Into<String>) -> Result<()> {
+        if let Some(tup) = &mut self.params.cont {
+            tup.1 = cval.into();
+            Ok(())
+        } else {
+            Err(Error::Params)
+        }
+    }
+
+    pub fn set_continue_key(&mut self, ckey: impl Into<String>) -> Result<()> {
+        if let Some(tup) = &mut self.params.cont {
+            tup.0 = ckey.into();
+            Ok(())
+        } else {
+            Err(Error::Params)
+        }
+    }
+
+    pub fn set_continue(&mut self, ckey: impl Into<String>, cval: impl Into<String>) {
+        self.params.cont = Some((ckey.into(), cval.into()));
+    }
+
     /// Replaces or Removes the current titles Vec and returns it
     /// If titles_ is Some, params.titles is replaced with the provided collection
     /// If titles_ is None, params.titles is set to None
@@ -233,10 +282,10 @@ impl ParamsBuilder<Query> {
         &mut self,
         continue_: Option<(impl Into<String>, impl Into<String>)>,
     ) -> Option<(String, String)> {
-        let prev: Option<(String, String)> = self.continue_.take();
+        let prev: Option<(String, String)> = self.params.cont.take();
 
         if let Some((k, v)) = continue_ {
-            self.continue_ = Some((k.into(), v.into()));
+            self.params.cont = Some((k.into(), v.into()));
         }
 
         prev
@@ -246,21 +295,34 @@ impl ParamsBuilder<Query> {
 #[cfg(test)]
 #[allow(non_snake_case)]
 mod tests {
-    use super::super::ser_types::Limit;
     use super::*;
     use serde_json::{json, to_value};
     use serde_test::{Token, assert_ser_tokens};
 
     #[test]
     fn test_chain_builder() {
-        let params: PARAMS = PARAMS::build::<Query>()
+        let params: PARAMS<Query> = PARAMS::build()
             .with_pageids([300_u32, 400_u32, 500_u32])
             .with_props([Prop::PageImages, Prop::Info])
             .with_format(Format::XmlFm)
             .build()
             .unwrap();
 
-        assert_ser_tokens(&params.params, &[todo!()]);
+        assert_ser_tokens(
+            &params,
+            &[
+                Token::Map { len: None },
+                Token::Str("action"),
+                Token::Str("query"),
+                Token::Str("pageids"),
+                Token::Str("300|400|500"),
+                Token::Str("prop"),
+                Token::Str("pageimages|info"),
+                Token::Str("format"),
+                Token::Str("xmlfm"),
+                Token::MapEnd,
+            ],
+        );
     }
 
     #[test]
@@ -269,9 +331,61 @@ mod tests {
         builder.append_titles(["oneTitle", "twoTitle"]);
         builder.append_props([Prop::Images, Prop::ImageInfo]);
         builder.replace_or_remove_titles(Some(["redTitle", "blueTitle"]));
+        builder.set_continue("continue", "someValue");
+        builder.set_continue_value("actualValue").unwrap();
+        let params: PARAMS<Query> = builder.build().unwrap();
 
-        let params: PARAMS = builder.build().unwrap();
+        assert_ser_tokens(
+            &params.params,
+            &[
+                Token::Map { len: Some(4) },
+                Token::Str("action"),
+                Token::Str("query"),
+                Token::Str("continue"),
+                Token::Str("actualValue"),
+                Token::Str("prop"),
+                Token::Str("images|imageinfo"),
+                Token::Str("titles"),
+                Token::Str("redTitle|blueTitle"),
+                Token::MapEnd,
+            ],
+        );
+    }
 
-        assert_ser_tokens(&params.params, &[todo!()]);
+    #[test]
+    fn test_mixed_builder() {
+        let mut builder: ParamsBuilder<Query> = PARAMS::build()
+            .with_props([Prop::ImageInfo])
+            .with_continue("remove", "later");
+
+        builder.set_format(Format::Php);
+
+        let g = Generator::allimages_with(Some("prefix".into()), None);
+
+        builder.set_generator(g);
+
+        let mut params: PARAMS<Query> = builder.build().unwrap();
+
+        assert!(params.remove_continue("remove").is_some());
+
+        assert_ser_tokens(
+            &params,
+            &[
+                Token::Map { len: None },
+                Token::Str("action"),
+                Token::Str("query"),
+                Token::Str("gailimit"),
+                Token::Str("50"),
+                Token::Str("gaiprefix"),
+                Token::Str("prefix"),
+                Token::Str("generator"),
+                Token::Str("allimages"),
+                Token::Str("prop"),
+                Token::Str("imageinfo"),
+                Token::Str("format"),
+                Token::Str("php"),
+                Token::MapEnd,
+            ],
+        );
     }
 }

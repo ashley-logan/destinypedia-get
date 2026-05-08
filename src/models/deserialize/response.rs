@@ -8,13 +8,14 @@ pub trait ResponseTrait {
     fn get_continue_param(&self) -> Option<(&str, &str)>;
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct Response<T: PropResults> {
     // in helper: #[serde(rename = 'continue')]
     cont: Option<Continue>,
     query: Option<Query<T>>,
 }
 
+#[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct IndiscriminateResponse {
     pub cont: Option<Continue>,
     pub results: HashMap<String, IndiscriminateQueryResult>,
@@ -105,5 +106,37 @@ impl<T: PropResults> Response<T> {
             }
         }
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::from_reader;
+    use serde_test::assert_de_tokens;
+    use std::env;
+    use std::fs::File;
+    use std::io::BufReader;
+    use std::path::{Path, PathBuf};
+    use std::str::FromStr;
+
+    static PATH_STR: &str = "./data/example_responses/ok";
+    fn get_data_dir() -> PathBuf {
+        let mut p = env::current_dir().unwrap();
+        p.push(Path::new(PATH_STR));
+        p
+    }
+
+    #[test]
+    fn test_indiscriminate_resp1() {
+        let mut p = get_data_dir();
+        p.push(Path::new("generator_allimages.json"));
+        let f = File::open(p).unwrap();
+
+        let mut rdr = BufReader::new(f);
+
+        let resp: Response<ImageInfo> = from_reader(rdr).unwrap();
+
+        dbg!(&resp);
     }
 }

@@ -21,46 +21,78 @@ DATABASE SCHEMA
     maybe: GRIMOIRE
 */
 
+use crate::models::NAMESPACE;
 use crate::models::deserialize::response::{IndiscriminateResponse, Response};
+use crate::models::{Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::Result};
 use reqwest::Client;
 
-// action=query&generator=allimages&gailimit=max&gaisort=name&gaiprop=url|size|timestamp&prop=imageinfo&iiprop=url|size|dimensions|timestamp
-async fn fetch_images(client: Client, gaicontinue: String) {
-    let params = json!({
-        "action": "query",
-        "format": "json",
-        "generator": "allimages",
-        "gailimit": "max",
-        "gaisort": "name",
-        "prop": "imageinfo",
-        "iiprop": "url|size|dimensions|timestamp",
-        "gaicontinue": gaicontinue
-    });
+pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
+    let builder: ParamsBuilder<Query> = ParamsBuilder::new()
+        .with_generator(Generator::allimages_with(None, Some(Limit::Num(20))))
+        .with_props([Prop::ImageInfo])
+        .with_extra("gaisort", "name")
+        .with_extra("iiprop", "url|size|dimensions|timestamp");
 
-    todo!("loop through generator")
+    builder.build()
 }
+
+pub(crate) fn get_categories_sync_params() -> Result<PARAMS<Query>> {
+    let builder: ParamsBuilder<Query> = ParamsBuilder::new()
+        .with_generator(Generator::allcategories_with(
+            None,
+            None,
+            None,
+            Some(Limit::Num(20)),
+        ))
+        .with_props([Prop::Categories, Prop::CategoryInfo])
+        .with_extra("cllimit", "max");
+
+    builder.build()
+}
+
+pub(crate) fn get_pages_sync_params() -> Result<PARAMS<Query>> {
+    let builder: ParamsBuilder<Query> = ParamsBuilder::new()
+        .with_generator(Generator::allpages_with(
+            Some([NAMESPACE::PAGE]),
+            Some(Limit::Num(20)),
+        ))
+        .with_props([Prop::Info, Prop::PageImages]);
+
+    builder.build()
+}
+// action=query&generator=allimages&gailimit=max&gaisort=name&prop=imageinfo&iiprop=url|size|dimensions|timestamp|canonicaltitle
 // action=query&generator=allcategories&format=jsonfm&prop=categoryinfo|categories&cllimit=max
-async fn fetch_categories(accontinue: String) {
-    let params = json!({
-        "action": "query",
-        "format": "json",
-        "generator": "allcategories",
-        "gaclimit": "max",
-        "prop": "categoryinfo|categories",
-        "cllimit": "max",
-        "accontinue": accontinue
-    });
 
-    todo!("loop through generator")
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use reqwest::{Client, Response};
 
-async fn fetch_pages(gapcontinue: String) {
-    let params = json!({
-        "action": "query",
-        "format": "json",
-        "generator": "allpages",
-        "gapnamespace": 0,
-        "gaplimit": "max",
-        "prop": "info"
-    });
+    static BASE: &str = "https://www.destinypedia.com/api.php";
+
+    #[tokio::test]
+    async fn test_allimages() {
+        let params: PARAMS<Query> = get_images_sync_params().unwrap();
+
+        let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
+
+        assert!(r.status().is_success())
+    }
+
+    #[tokio::test]
+    async fn test_allcategories() {
+        let params: PARAMS<Query> = get_categories_sync_params().unwrap();
+
+        let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
+
+        assert!(r.status().is_success())
+    }
+    #[tokio::test]
+    async fn test_allpages() {
+        let params: PARAMS<Query> = get_pages_sync_params().unwrap();
+
+        let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
+
+        assert!(r.status().is_success())
+    }
 }

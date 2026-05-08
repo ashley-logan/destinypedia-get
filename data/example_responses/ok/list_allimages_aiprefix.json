@@ -1,12 +1,4 @@
 
-MediaWiki API result
-
-This is the HTML representation of the JSON format. HTML is good for debugging, but is unsuitable for application use.
-
-Specify the format parameter to change the output format. To see the non-HTML representation of the JSON format, set format=json.
-
-See the complete documentation, or the API help for more information.
-
 {
     "batchcomplete": "",
     "limits": {

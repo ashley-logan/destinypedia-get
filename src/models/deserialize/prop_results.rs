@@ -1,6 +1,5 @@
 use crate::{deserialize::items::Item, models::deserialize::items};
 use serde::Deserialize;
-
 pub trait PropResults {
     fn all_empty(&self) -> bool;
 }

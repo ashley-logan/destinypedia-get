@@ -1,5 +1,5 @@
-use super::NAMESPACE;
-use super::ser_types::{Action, Limit, ListString};
+use super::ser_types::{ContinueStruct, Limit, ListString};
+use super::{NAMESPACE, Prop};
 use derive_more::Display;
 use serde::Serialize;
 use serde_with;
@@ -8,7 +8,7 @@ use serde_with_macros::{serde_as, skip_serializing_none};
 #[serde_as]
 #[skip_serializing_none]
 #[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Default)]
-#[serde(tag = "action", rename_all = "lowercase")]
+#[serde(tag = "action", rename_all = "lowercase", rename = "query")]
 pub struct Query {
     #[serde_as(as = "Option<ListString>")]
     pub titles: Option<Vec<String>>,
@@ -18,27 +18,9 @@ pub struct Query {
     pub prop: Option<Vec<Prop>>,
     #[serde(flatten)]
     pub generator: Option<Generator>,
+    #[serde_as(as = "Option<ContinueStruct>")]
     #[serde(flatten)]
     pub cont: Option<(String, String)>,
-}
-
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Display)]
-#[serde(rename_all = "lowercase")]
-#[display(rename_all = "lowercase")]
-pub enum Prop {
-    Info,
-    PageImages,
-    Images,
-    ImageInfo,
-    Categories,
-    CategoryInfo,
-    FileUsage,
-}
-
-impl Into<String> for Prop {
-    fn into(self) -> String {
-        self.to_string()
-    }
 }
 
 #[serde_as]
@@ -47,8 +29,6 @@ impl Into<String> for Prop {
 #[serde(tag = "generator", rename_all = "lowercase")]
 pub enum Generator {
     AllImages {
-        #[serde_as(as = "Option<ListString>")]
-        gaiprop: Option<Vec<Prop>>,
         gaiprefix: Option<String>,
         gailimit: Limit,
     },
@@ -66,8 +46,6 @@ pub enum Generator {
     CategoryMembers {
         gcmtitle: String,
         #[serde_as(as = "Option<ListString>")]
-        gcmprop: Option<Vec<Prop>>,
-        #[serde_as(as = "Option<ListString>")]
         gcmnamespace: Option<Vec<NAMESPACE>>,
         gcmlimit: Limit,
     },
@@ -75,21 +53,19 @@ pub enum Generator {
 }
 
 impl Generator {
-    pub fn allimages_with(
-        gaiprop: Option<Vec<Prop>>,
-        gaiprefix: Option<String>,
-        gailimit: Option<Limit>,
-    ) -> Self {
+    pub fn allimages_with(gaiprefix: Option<String>, gailimit: Option<Limit>) -> Self {
         Generator::AllImages {
-            gaiprop,
             gaiprefix,
             gailimit: gailimit.unwrap_or_default(),
         }
     }
 
-    pub fn allpages_with(gapnamespace: Option<Vec<NAMESPACE>>, gaplimit: Option<Limit>) -> Self {
+    pub fn allpages_with(
+        gapnamespace: Option<impl IntoIterator<Item = NAMESPACE>>,
+        gaplimit: Option<Limit>,
+    ) -> Self {
         Generator::AllPages {
-            gapnamespace,
+            gapnamespace: gapnamespace.map(|v| v.into_iter().collect::<Vec<NAMESPACE>>()),
             gaplimit: gaplimit.unwrap_or_default(),
         }
     }
@@ -110,13 +86,11 @@ impl Generator {
 
     pub fn categorymembers_with(
         gcmtitle: impl Into<String>,
-        gcmprop: Option<Vec<Prop>>,
         gcmnamespace: Option<Vec<NAMESPACE>>,
         gcmlimit: Option<Limit>,
     ) -> Self {
         Generator::CategoryMembers {
             gcmtitle: gcmtitle.into(),
-            gcmprop,
             gcmnamespace,
             gcmlimit: gcmlimit.unwrap_or_default(),
         }
@@ -132,7 +106,6 @@ mod tests {
     fn test_generator_success() {
         let g = Generator::CategoryMembers {
             gcmtitle: "Category:Test".into(),
-            gcmprop: Some(vec![Prop::Categories]),
             gcmnamespace: Some(vec![NAMESPACE::CATEGORY, NAMESPACE::PAGE]),
             gcmlimit: Limit::Max,
         };
@@ -142,15 +115,12 @@ mod tests {
             &[
                 Token::Struct {
                     name: "Generator",
-                    len: 4,
+                    len: 5,
                 },
                 Token::Str("generator"),
                 Token::Str("categorymembers"),
                 Token::Str("gcmtitle"),
                 Token::Str("Category:Test"),
-                Token::Str("gcmprop"),
-                Token::Some,
-                Token::Str("categories"),
                 Token::Str("gcmnamespace"),
                 Token::Some,
                 Token::Str("14|0"),
@@ -163,22 +133,19 @@ mod tests {
 
     #[test]
     fn test_generator_constructor() {
-        let g = Generator::allimages_with(Some(vec![Prop::ImageInfo]), None, None);
+        let g = Generator::allimages_with(None, Some(Limit::Num(20)));
 
         assert_ser_tokens(
             &g,
             &[
                 Token::Struct {
                     name: "Generator",
-                    len: 4,
+                    len: 3,
                 },
                 Token::Str("generator"),
                 Token::Str("allimages"),
-                Token::Str("gaiprop"),
-                Token::Some,
-                Token::Str("imageinfo"),
                 Token::Str("gailimit"),
-                Token::U16(50),
+                Token::Str("20"),
                 Token::StructEnd,
             ],
         );
@@ -199,7 +166,7 @@ mod tests {
             &[
                 Token::Map { len: None },
                 Token::Str("action"),
-                Token::Str("Query"),
+                Token::Str("query"),
                 Token::Str("titles"),
                 Token::Some,
                 Token::Str("simpleTitle|anotherOne"),
