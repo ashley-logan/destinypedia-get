@@ -1,12 +1,11 @@
 use super::prop_results::PropResults;
-use super::query::{Continue};
-use serde::Deserialize;
-use serde_with::{DeserializeAs, serde_as, TryFromInto, DefaultOnError};
+use super::query::Continue;
 use crate::models::serialize::NAMESPACE;
-use super::{Categories, CategoryInfo, ImageInfo, Images, PageImages, PageInfo};
+use serde::Deserialize;
+use serde_with::{DefaultOnError, DeserializeAs, TryFromInto, serde_as};
+// use super::{Categories, CategoryInfo, ImageInfo, Images, PageImages, PageInfo};
 use super::items;
 use std::collections::HashMap;
-
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct InfallibleResponse {
@@ -16,8 +15,32 @@ pub struct InfallibleResponse {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct InfallibleQuery {
-    pub pages: HashMap<String, InfallibleQueryResult>
+    pub pages: HashMap<String, InfallibleQueryResult>,
 }
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct CategoriesWrapper(Vec<items::CategoryItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct CategoryInfoWrapper(items::CatgeoryInfoItem);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct ImagesWrapper(Vec<items::ImageItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct PageImagesWrapper(items::PageImageItem);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct ImageInfoWrapper(Vec<items::ImageInfoItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+struct InfoWrapper(items::PageInfoItem);
 
 #[serde_as]
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -27,14 +50,15 @@ pub struct InfallibleQueryResult {
     pub ns: Option<NAMESPACE>,
     pub title: Option<String>,
     pub missing: Option<String>,
-    pub categories: Option<Categories>,
-    pub categoryinfo: Option<items::CatgeoryInfoItem>,
-    pub images: Option<Images>,
+    pub categories: Option<CategoriesWrapper>,
     #[serde(flatten)]
-    pub pageimages: Option<PageImages>,
-    pub imageinfo: Option<ImageInfo>,
+    pub categoryinfo: Option<CategoryInfoWrapper>,
+    pub images: Option<ImagesWrapper>,
     #[serde(flatten)]
-    pub info: Option<items::PageInfoItem>,
+    pub pageimages: Option<PageImagesWrapper>,
+    pub imageinfo: Option<ImageInfoWrapper>,
+    #[serde(flatten)]
+    pub info: Option<InfoWrapper>,
 }
 
 #[derive(Debug)]
@@ -60,16 +84,23 @@ impl QueryResult {
     }
 }
 
-
-
-
 impl TryFrom<InfallibleQueryResult> for QueryResult {
     type Error = crate::Error;
     fn try_from(value: InfallibleQueryResult) -> Result<Self, Self::Error> {
         match (value.pageid, value.ns, value.title, value.missing) {
             (_, _, _, Some(_)) => Err(crate::Error::TryIntoQueryResult),
-            (Some(pid), Some(n), Some(t), None) => Ok(QueryResult { pageid: pid, ns: n, title: t, categories: value.categories.map_or_else(Vec::new, |c| c.categories), categoryinfo: value.categoryinfo, images: value.images.map_or_else(Vec::new, |i| i.images), pageimages: value.pageimages.map(|pi| pi.pageimages), imageinfo: value.imageinfo.map(|ii| ii.imageinfo[0].clone()), info: value.info}),
-            _ => Err(crate::Error::TryIntoQueryResult)
+            (Some(pid), Some(n), Some(t), None) => Ok(QueryResult {
+                pageid: pid,
+                ns: n,
+                title: t,
+                categories: value.categories.map_or_else(Vec::new, |c| c.categories),
+                categoryinfo: value.categoryinfo,
+                images: value.images.map_or_else(Vec::new, |i| i.images),
+                pageimages: value.pageimages.map(|pi| pi.pageimages),
+                imageinfo: value.imageinfo.map(|ii| ii.imageinfo[0].clone()),
+                info: value.info,
+            }),
+            _ => Err(crate::Error::TryIntoQueryResult),
         }
     }
 }
@@ -92,7 +123,7 @@ pub struct QueryResponse {
     pub continue_: Option<Continue>,
     #[serde_as(as = "QueryResponseFromHelper")]
     #[serde(flatten)]
-    pub results: Vec<QueryResult>
+    pub results: Vec<QueryResult>,
 }
 
 impl QueryResponse {
@@ -109,16 +140,10 @@ impl QueryResponse {
     }
 }
 
-
-
-
-
-
-
 impl<'de> DeserializeAs<'de, Vec<QueryResult>> for QueryResponseFromHelper {
     fn deserialize_as<D>(deserializer: D) -> Result<Vec<QueryResult>, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         let helper: InfallibleResponse = InfallibleResponse::deserialize(deserializer)?;
 
@@ -127,27 +152,33 @@ impl<'de> DeserializeAs<'de, Vec<QueryResult>> for QueryResponseFromHelper {
         if let Some((k, v)) = helper.query.pages.iter().next() {
             if k == "-1" {
                 dbg!(format!("de failed => page id == -1"));
-                return Ok(resp)
+                return Ok(resp);
             }
             if v.missing.is_some() {
                 dbg!(format!("de failed => missing is some"));
-                return Ok(resp)
+                return Ok(resp);
             }
 
-            if v.pageid.is_none_or(|i| k.parse::<u64>().ok().is_none_or(|ki| i != ki)) {
+            if v.pageid
+                .is_none_or(|i| k.parse::<u64>().ok().is_none_or(|ki| i != ki))
+            {
                 dbg!(format!("de failed => pageids none or not equal"));
-                return Ok(resp)
+                return Ok(resp);
             }
         } else {
             dbg!(format!("de failed => no results in pages"));
-            return Ok(resp)
+            return Ok(resp);
         }
 
-        resp.extend(helper.query.pages.into_values().filter_map(|v| v.try_into().ok()));
+        resp.extend(
+            helper
+                .query
+                .pages
+                .into_values()
+                .filter_map(|v| v.try_into().ok()),
+        );
 
         Ok(resp)
-
-
     }
 }
 
@@ -155,9 +186,9 @@ impl<'de> DeserializeAs<'de, Vec<QueryResult>> for QueryResponseFromHelper {
 mod tests {
     use super::*;
     use std::env;
-    use std::fs::{File};
+    use std::fs::File;
     use std::io::Read;
-    use std::path::{PathBuf, Path};
+    use std::path::{Path, PathBuf};
 
     static DATA_DIR: &str = "data/example_responses";
 
@@ -179,15 +210,14 @@ mod tests {
         let resp: QueryResponse = serde_json::from_str(buf.as_str()).unwrap();
 
         dbg!(&resp);
-
-
-
     }
 
     #[test]
     fn test_queryresponse_allimages() {
         let mut fpath = get_data_dir();
-        fpath.push(Path::new("ok/generator_allcategories_prop_categories|categoryinfo.json"));
+        fpath.push(Path::new(
+            "ok/generator_allcategories_prop_categories|categoryinfo.json",
+        ));
 
         let mut f = File::open(fpath).unwrap();
         let mut buf = String::new();

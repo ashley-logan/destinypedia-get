@@ -1,9 +1,8 @@
 use crate::models::deserialize::prop_results::*;
 use crate::models::deserialize::query::{Continue, IndiscriminateQueryResult, Query, QueryResult};
 use serde::{Deserialize, de::DeserializeOwned};
-use std::collections::HashMap;
 use serde_with::DeserializeAs;
-
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct QueryResultHelper<T: PropResults> {
@@ -27,8 +26,7 @@ pub(crate) struct ResponseHelper<T: PropResults> {
     pub(crate) query: Option<Query<T>>,
 }
 
-
-/* 
+/*
 use serde_with::DeserializeAs;
 
 pub struct PointFromRaw;

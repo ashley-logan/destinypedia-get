@@ -139,4 +139,33 @@ mod tests {
 
         dbg!(&resp);
     }
+
+    #[test]
+    fn test_resp2() {
+        let mut p = get_data_dir();
+        p.push(Path::new(
+            "generator_allcategories_prop_categories|categoryinfo.json",
+        ));
+        let f = File::open(p).unwrap();
+
+        let mut rdr = BufReader::new(f);
+
+        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
+
+        dbg!(&resp);
+    }
+
+    #[test]
+    fn test_resp3() {
+        let mut p = get_data_dir();
+        p.push(Path::new("prop_pageimages_original|name.json"));
+
+        let f = File::open(p).unwrap();
+
+        let mut rdr = BufReader::new(f);
+
+        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
+
+        dbg!(&resp);
+    }
 }
