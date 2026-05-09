@@ -18,29 +18,7 @@ pub struct InfallibleQuery {
     pub pages: HashMap<String, InfallibleQueryResult>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct CategoriesWrapper(Vec<items::CategoryItem>);
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct CategoryInfoWrapper(items::CatgeoryInfoItem);
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct ImagesWrapper(Vec<items::ImageItem>);
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct PageImagesWrapper(items::PageImageItem);
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct ImageInfoWrapper(Vec<items::ImageInfoItem>);
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-struct InfoWrapper(items::PageInfoItem);
 
 #[serde_as]
 #[derive(Debug, Deserialize, PartialEq, Eq)]

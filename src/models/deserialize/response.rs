@@ -18,7 +18,7 @@ pub struct Response<T: PropResults> {
 #[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct IndiscriminateResponse {
     pub cont: Option<Continue>,
-    pub results: HashMap<String, IndiscriminateQueryResult>,
+    pub results: Vec<IndiscriminateQueryResult>,
 }
 
 impl<'de> Deserialize<'de> for IndiscriminateResponse {
@@ -29,9 +29,10 @@ impl<'de> Deserialize<'de> for IndiscriminateResponse {
         let helper: IndiscriminateResponseHelper =
             IndiscriminateResponseHelper::deserialize(deserializer)?;
 
+
         Ok(IndiscriminateResponse {
             cont: helper.cont,
-            results: helper.query.pages,
+            results: helper.query.pages.into_values().collect(),
         })
     }
 }
@@ -50,8 +51,8 @@ impl ResponseTrait for IndiscriminateResponse {
 }
 
 impl IndiscriminateResponse {
-    pub fn get_results(&self) -> &HashMap<String, IndiscriminateQueryResult> {
-        &self.results
+    pub fn get_results(&self) -> &[IndiscriminateQueryResult] {
+        self.results.as_slice()
     }
 }
 

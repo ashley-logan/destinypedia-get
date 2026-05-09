@@ -1,74 +1,137 @@
 use crate::{deserialize::items::Item, models::deserialize::items};
 use serde::Deserialize;
 pub trait PropResults {
-    fn all_empty(&self) -> bool;
+    fn inner_all_none(&self) -> bool;
 }
+
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct CategoriesProp(Vec<items::CategoryItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct CategoryInfoProp(items::CatgeoryInfoItem);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct ImagesProp(Vec<items::ImageItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct PageImagesProp(items::PageImageItem);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct ImageInfoProp(Vec<items::ImageInfoItem>);
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct InfoProp(items::PageInfoItem);
+
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct ImageInfo {
     pub imageinfo: Vec<items::ImageInfoItem>,
 }
 
-impl PropResults for ImageInfo {
-    fn all_empty(&self) -> bool {
-        self.imageinfo.is_empty() || self.imageinfo.iter().all(items::ImageInfoItem::is_empty)
+impl PropResults for CategoriesProp {
+    fn inner_all_none(&self) -> bool {
+        self.0.iter().all(items::CategoryItem::is_empty)
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct CategoryInfo {
-    pub categoryinfo: items::CatgeoryInfoItem,
-}
-
-impl PropResults for CategoryInfo {
-    fn all_empty(&self) -> bool {
-        self.categoryinfo.is_empty()
+impl PropResults for CategoryInfoProp {
+    fn inner_all_none(&self) -> bool {
+        items::CatgeoryInfoItem::is_empty(&self.0)
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct Categories {
-    pub categories: Vec<items::CategoryItem>,
-}
-
-impl PropResults for Categories {
-    fn all_empty(&self) -> bool {
-        self.categories.is_empty() || self.categories.iter().all(items::CategoryItem::is_empty)
+impl PropResults for ImagesProp {
+    fn inner_all_none(&self) -> bool {
+        self.0.iter().all(items::ImageItem::is_empty)
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct PageImages {
-    #[serde(flatten)]
-    pub pageimages: items::PageImageItem,
-}
-
-impl PropResults for PageImages {
-    fn all_empty(&self) -> bool {
-        self.pageimages.is_empty()
+impl PropResults for PageImagesProp {
+    fn inner_all_none(&self) -> bool {
+        items::PageImageItem::is_empty(&self.0)
     }
 }
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct Images {
-    pub images: Vec<items::ImageItem>,
-}
 
-impl PropResults for Images {
-    fn all_empty(&self) -> bool {
-        self.images.is_empty() || self.images.iter().all(items::ImageItem::is_empty)
+impl PropResults for ImageInfoProp {
+    fn inner_all_none(&self) -> bool {
+        self.0.iter().all(items::ImageInfoItem::is_empty)
     }
 }
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-pub struct PageInfo {
-    #[serde(flatten)]
-    pub pageinfo: items::PageInfoItem,
-}
 
-impl PropResults for PageInfo {
-    fn all_empty(&self) -> bool {
-        self.pageinfo.is_empty()
+impl PropResults for InfoProp {
+    fn inner_all_none(&self) -> bool {
+        items::PageInfoItem::is_empty(&self.0)
     }
 }
+
+
+// impl PropResults for ImageInfo {
+//     fn all_empty(&self) -> bool {
+//         self.imageinfo.is_empty() || self.imageinfo.iter().all(items::ImageInfoItem::is_empty)
+//     }
+// }
+
+// #[derive(Debug, Deserialize, PartialEq, Eq)]
+// pub struct CategoryInfo {
+//     pub categoryinfo: items::CatgeoryInfoItem,
+// }
+
+// impl PropResults for CategoryInfo {
+//     fn all_empty(&self) -> bool {
+//         self.categoryinfo.is_empty()
+//     }
+// }
+
+// #[derive(Debug, Deserialize, PartialEq, Eq)]
+// pub struct Categories {
+//     pub categories: Vec<items::CategoryItem>,
+// }
+
+// impl PropResults for Categories {
+//     fn all_empty(&self) -> bool {
+//         self.categories.is_empty() || self.categories.iter().all(items::CategoryItem::is_empty)
+//     }
+// // }
+
+// #[derive(Debug, Deserialize, PartialEq, Eq)]
+// pub struct PageImages {
+//     #[serde(flatten)]
+//     pub pageimages: items::PageImageItem,
+// }
+
+// impl PropResults for PageImages {
+//     fn all_empty(&self) -> bool {
+//         self.pageimages.is_empty()
+//     }
+// }
+// #[derive(Debug, Deserialize, PartialEq, Eq)]
+// pub struct Images {
+//     pub images: Vec<items::ImageItem>,
+// }
+
+// impl PropResults for Images {
+//     fn all_empty(&self) -> bool {
+//         self.images.is_empty() || self.images.iter().all(items::ImageItem::is_empty)
+//     }
+// }
+// #[derive(Debug, Deserialize, PartialEq, Eq)]
+// pub struct PageInfo {
+//     #[serde(flatten)]
+//     pub pageinfo: items::PageInfoItem,
+// }
+
+// impl PropResults for PageInfo {
+//     fn all_empty(&self) -> bool {
+//         self.pageinfo.is_empty()
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

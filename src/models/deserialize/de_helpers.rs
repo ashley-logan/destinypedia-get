@@ -2,6 +2,7 @@ use crate::models::deserialize::prop_results::*;
 use crate::models::deserialize::query::{Continue, IndiscriminateQueryResult, Query, QueryResult};
 use serde::{Deserialize, de::DeserializeOwned};
 use serde_with::DeserializeAs;
+use serde_with::{DefaultOnError, TryFromInto};
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
@@ -48,24 +49,22 @@ impl<'de> DeserializeAs<'de, Point> for PointFromRaw {
 }
 
     */
+
+#[serde_with::serde_as]
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct IndiscriminateQueryResultHelper {
-    pub pageid: Option<usize>,
-    pub ns: Option<usize>,
+    pub pageid: Option<i32>,
+    #[serde_as(as = "DefaultOnError<Option<TryFromInto<u16>>>")]
+    pub ns: Option<crate::models::NAMESPACE>,
     pub title: Option<String>,
-    pub missing: Option<String>,
+    pub categories: Option<CategoriesProp>,
+    pub categoryinfo: Option<CategoryInfoProp>,
+    pub images: Option<ImagesProp>,
+    pub imageinfo: Option<ImageInfoProp>,
     #[serde(flatten)]
-    pub categories: Option<Categories>,
+    pub pageimages: Option<PageImagesProp>,
     #[serde(flatten)]
-    pub categoryinfo: Option<CategoryInfo>,
-    #[serde(flatten)]
-    pub images: Option<Images>,
-    #[serde(flatten)]
-    pub pageimages: Option<PageImages>,
-    #[serde(flatten)]
-    pub imageinfo: Option<ImageInfo>,
-    #[serde(flatten)]
-    pub info: Option<PageInfo>,
+    pub info: Option<InfoProp>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]

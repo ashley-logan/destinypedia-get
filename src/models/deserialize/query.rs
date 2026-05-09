@@ -1,5 +1,6 @@
 use crate::models::deserialize::{de_helpers::*, prop_results::*};
 use serde::Deserialize;
+use serde::de;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
@@ -86,16 +87,15 @@ impl<'de, T: PropResults + Deserialize<'de>> Deserialize<'de> for QueryResult<T>
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct IndiscriminateQueryResult {
-    pub pageid: Option<usize>,
-    pub ns: Option<usize>,
-    pub title: Option<String>,
-    pub missing: Option<String>,
-    pub categories: Option<Categories>,
-    pub categoryinfo: Option<CategoryInfo>,
-    pub images: Option<Images>,
-    pub pageimages: Option<PageImages>,
-    pub imageinfo: Option<ImageInfo>,
-    pub info: Option<PageInfo>,
+    pub pageid: u32,
+    pub ns: crate::models::NAMESPACE,
+    pub title: String,
+    pub categories: Option<CategoriesProp>,
+    pub categoryinfo: Option<CategoryInfoProp>,
+    pub images: Option<ImagesProp>,
+    pub imageinfo: Option<ImageInfoProp>,
+    pub pageimages: Option<PageImagesProp>,
+    pub info: Option<InfoProp>,
 }
 
 impl<'de> Deserialize<'de> for IndiscriminateQueryResult {
@@ -106,11 +106,23 @@ impl<'de> Deserialize<'de> for IndiscriminateQueryResult {
         let helper: IndiscriminateQueryResultHelper =
             IndiscriminateQueryResultHelper::deserialize(deserializer)?;
 
+        let id = helper
+            .pageid
+            .ok_or_else(|| de::Error::custom("invalid request"))?;
+
+        let pageid: u32 = id
+            .try_into()
+            .map_err(|_| de::Error::custom("invalid request, no results returned"))?;
+
+        let ns = helper.ns.ok_or_else(|| de::Error::custom("invalid response, no namespace found"))?;
+
+        let title = helper.title.ok_or_else(|| de::Error::custom("invalid response, no title found"))?;
+
+
         let mut r = IndiscriminateQueryResult {
-            pageid: helper.pageid,
-            ns: helper.ns,
-            title: helper.title,
-            missing: helper.missing,
+            pageid,
+            ns,
+            title,
             categories: None,
             categoryinfo: None,
             images: None,
@@ -120,37 +132,37 @@ impl<'de> Deserialize<'de> for IndiscriminateQueryResult {
         };
 
         if let Some(x) = &helper.categories {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.categories = helper.categories;
             }
         }
 
         if let Some(x) = &helper.categoryinfo {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.categoryinfo = helper.categoryinfo;
             }
         }
 
         if let Some(x) = &helper.images {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.images = helper.images;
             }
         }
 
         if let Some(x) = &helper.imageinfo {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.imageinfo = helper.imageinfo;
             }
         }
 
         if let Some(x) = &helper.pageimages {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.pageimages = helper.pageimages;
             }
         }
 
         if let Some(x) = &helper.info {
-            if !x.all_empty() {
+            if !x.inner_all_none() {
                 r.info = helper.info;
             }
         }
