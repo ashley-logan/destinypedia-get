@@ -26,6 +26,9 @@ use crate::models::deserialize::response::{IndiscriminateResponse, Response};
 use crate::models::{Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::Result};
 use reqwest::Client;
 
+
+
+
 pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::allimages_with(None, Some(Limit::Num(20))))

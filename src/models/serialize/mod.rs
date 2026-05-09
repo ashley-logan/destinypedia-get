@@ -7,7 +7,7 @@ pub use properties::Prop;
 pub mod ser_types;
 pub use ser_types::Limit;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 impl fmt::Display for NAMESPACE {
@@ -22,8 +22,16 @@ impl Into<String> for NAMESPACE {
     }
 }
 
+impl Into<u16> for NAMESPACE {
+    fn into(self) -> u16 {
+        self as u16
+    }
+}
+
+
 #[repr(u16)]
-#[derive(Debug, Serialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, derive_more::TryFrom)]
+#[try_from(repr)]
 pub enum NAMESPACE {
     PAGE = 0,
     TALK = 1,

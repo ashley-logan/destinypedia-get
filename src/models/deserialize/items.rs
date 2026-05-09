@@ -4,7 +4,7 @@ pub trait Item {
     fn is_empty(&self) -> bool;
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct ImageItem {
     pub ns: u32,
     pub title: String,
@@ -16,7 +16,7 @@ impl Item for ImageItem {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct ImageInfoItem {
     pub canonicaltitle: Option<String>,
     pub size: Option<usize>,
@@ -46,7 +46,7 @@ impl Item for ImageInfoItem {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct CategoryItem {
     pub ns: u32,
     pub title: String,
@@ -58,7 +58,7 @@ impl Item for CategoryItem {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct CatgeoryInfoItem {
     pub size: Option<usize>,
     pub pages: Option<usize>,
@@ -81,7 +81,7 @@ impl Item for CatgeoryInfoItem {
         }
     }
 }
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct PageImageItem {
     pub original: Option<Original>,
     pub pageimage: Option<String>,
@@ -99,7 +99,7 @@ impl Item for PageImageItem {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct Original {
     // for PageImageItem only
     pub source: String,
@@ -107,7 +107,7 @@ pub struct Original {
     pub height: usize,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct PageInfoItem {
     pub contentmodel: Option<String>,
     pub length: Option<usize>,
