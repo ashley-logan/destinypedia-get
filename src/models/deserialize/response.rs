@@ -8,12 +8,7 @@ pub trait ResponseTrait {
     fn get_continue_param(&self) -> Option<(&str, &str)>;
 }
 
-#[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
-pub struct Response<T: PropResults> {
-    // in helper: #[serde(rename = 'continue')]
-    cont: Option<Continue>,
-    query: Option<Query<T>>,
-}
+
 
 #[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct IndiscriminateResponse {
@@ -56,59 +51,7 @@ impl IndiscriminateResponse {
     }
 }
 
-impl<'de, T: PropResults + Deserialize<'de>> Deserialize<'de> for Response<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let helper: ResponseHelper<T> = ResponseHelper::deserialize(deserializer)?;
 
-        let no_de: bool;
-        if let Some(q) = &helper.query {
-            no_de = q.pages.is_none();
-        } else {
-            no_de = true;
-        }
-
-        if no_de {
-            Ok(Response {
-                cont: None,
-                query: None,
-            })
-        } else {
-            Ok(Response {
-                cont: helper.cont,
-                query: helper.query,
-            })
-        }
-    }
-}
-
-impl<T: PropResults> ResponseTrait for Response<T> {
-    fn get_continue_param(&self) -> Option<(&str, &str)> {
-        if let Some(c) = &self.cont {
-            for (k, v) in &c.sub_cont {
-                if k.ends_with("continue") {
-                    return Some((k, v));
-                }
-            }
-            None
-        } else {
-            None
-        }
-    }
-}
-
-impl<T: PropResults> Response<T> {
-    pub fn get_results(&self) -> Option<&HashMap<String, QueryResult<T>>> {
-        if let Some(q) = &self.query {
-            if let Some(map) = &q.pages {
-                return Some(map);
-            }
-        }
-        None
-    }
-}
 
 #[cfg(test)]
 mod tests {
@@ -117,7 +60,7 @@ mod tests {
     use serde_test::assert_de_tokens;
     use std::env;
     use std::fs::File;
-    use std::io::BufReader;
+    use std::io::{BufReader, Read};
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
 
@@ -128,16 +71,20 @@ mod tests {
         p
     }
 
+    fn get_data_fail_dir() -> PathBuf {
+        let mut p = env::current_dir().unwrap();
+        p.push(Path::new("./data/example_responses/fail"));
+        p
+    }
+
     #[test]
-    fn test_indiscriminate_resp1() {
+    fn test_resp1() {
         let mut p = get_data_dir();
-        p.push(Path::new("generator_allimages.json"));
-        let f = File::open(p).unwrap();
+        p.push(Path::new("generator_allimages_prop_imageinfo.json"));
 
-        let mut rdr = BufReader::new(f);
+        let mut rdr = BufReader::new(File::open(p).unwrap());
 
-        let resp: Response<ImageInfo> = from_reader(rdr).unwrap();
-
+        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
         dbg!(&resp);
     }
 
@@ -168,5 +115,17 @@ mod tests {
         let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
 
         dbg!(&resp);
+    }
+
+    #[test]
+    fn test_fail_resp1() {
+         let mut p = get_data_fail_dir();
+        p.push(Path::new("prop_info.json"));
+
+        let f = File::open(p).unwrap();
+
+        let mut rdr = BufReader::new(f);
+
+        assert!(from_reader::<_, IndiscriminateResponse>(rdr).is_err());
     }
 }

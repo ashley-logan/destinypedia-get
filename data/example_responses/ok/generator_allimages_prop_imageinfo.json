@@ -1,0 +1,116 @@
+{
+  "continue": {
+    "clcontinue": "40158|Weapon_screenshots",
+    "continue": "||imageinfo"
+  },
+  "query": {
+    "pages": {
+      "44354": {
+        "pageid": 44354,
+        "ns": 6,
+        "title": "File:'Act on Instinct'.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2024-07-02T13:45:06Z", "user": "Wolffee3942" }
+        ]
+      },
+      "44359": {
+        "pageid": 44359,
+        "ns": 6,
+        "title": "File:'Draught of Nectar'.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2024-07-02T14:16:47Z", "user": "Wolffee3942" }
+        ]
+      },
+      "44363": {
+        "pageid": 44363,
+        "ns": 6,
+        "title": "File:'Fatal Vision'.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2024-07-02T14:26:28Z", "user": "Wolffee3942" }
+        ]
+      },
+      "44352": {
+        "pageid": 44352,
+        "ns": 6,
+        "title": "File:'Laughing Behind Your Back'.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2024-07-02T13:37:28Z", "user": "Wolffee3942" }
+        ]
+      },
+      "44353": {
+        "pageid": 44353,
+        "ns": 6,
+        "title": "File:'Plasma Donor'.png",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2024-07-02T13:40:01Z", "user": "Wolffee3942" }
+        ]
+      },
+      "10226": {
+        "pageid": 10226,
+        "ns": 6,
+        "title": "File:((CHAOS DOGMA~)).jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2017-04-30T02:38:08Z", "user": "Shazamikaze" }
+        ],
+        "categories": [
+          { "ns": 14, "title": "Category:Game screenshots" },
+          { "ns": 14, "title": "Category:Images of Scout Rifles" },
+          { "ns": 14, "title": "Category:Weapon screenshots" }
+        ]
+      },
+      "40158": {
+        "pageid": 40158,
+        "ns": 6,
+        "title": "File:((CHAOS DOGMA~)) fully upgraded.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2023-10-27T21:55:09Z", "user": "Rodrigo Vilacza" }
+        ],
+        "categories": [{ "ns": 14, "title": "Category:Game screenshots" }]
+      },
+      "10227": {
+        "pageid": 10227,
+        "ns": 6,
+        "title": "File:((FEVER AND REMEDY~)).jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2017-04-30T02:38:53Z", "user": "Shazamikaze" }
+        ],
+        "categories": [
+          { "ns": 14, "title": "Category:Game screenshots" },
+          { "ns": 14, "title": "Category:Images of Hand Cannons" },
+          { "ns": 14, "title": "Category:Weapon screenshots" }
+        ]
+      },
+      "10228": {
+        "pageid": 10228,
+        "ns": 6,
+        "title": "File:((GENESIS CHAIN~)).jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2017-04-30T02:39:26Z", "user": "Shazamikaze" }
+        ],
+        "categories": [
+          { "ns": 14, "title": "Category:Game screenshots" },
+          { "ns": 14, "title": "Category:Images of Auto Rifles" },
+          { "ns": 14, "title": "Category:Weapon screenshots" }
+        ]
+      },
+      "40159": {
+        "pageid": 40159,
+        "ns": 6,
+        "title": "File:((GENESIS CHAIN~)) fully upgraded.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          { "timestamp": "2023-10-27T21:57:48Z", "user": "Rodrigo Vilacza" }
+        ]
+      }
+    }
+  }
+}

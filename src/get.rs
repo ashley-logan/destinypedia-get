@@ -41,28 +41,6 @@ pub async fn get<T: ResponseTrait + DeserializeOwned>(
     Ok(responses)
 }
 
-// pub async fn get_indiscriminate(
-//     params: PARAMS<query::Query>,
-// ) -> error::Result<Vec<IndiscriminateResponse>> {
-//     let client: Client = get_client();
-//     let more: bool = true; // more results to get
-//     let mut responses: Vec<IndiscriminateResponse> = vec![];
-
-//     while more {
-//         let (req, client): (Request, Client) = client.get(BASE).query(&params).build_split()?;
-//         let resp: IndiscriminateResponse = client.execute(req).await?.json().await?;
-
-//         responses.push(resp);
-
-//         if let Some((ck, cv)) = resp.get_continue_param() {
-//             params.set_cont(ck, cv);
-//         } else {
-//             more = false;
-//         }
-//     }
-
-//     Ok(responses)
-// }
 
 // #[cfg(test)]
 // mod tests {

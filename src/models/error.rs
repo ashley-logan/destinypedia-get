@@ -13,7 +13,9 @@ pub enum Error {
     #[error("{0}")]
     SerdeJsonErr(#[from] serde_json::Error),
     #[error("Error converting into QueryResult")]
-    TryIntoQueryResult
+    TryIntoQueryResult,
+    #[error("Error converting a response result into a row struct")]
+    TryFromResponseIntoRow,
 }
 
 pub type Result<T> = std::result::Result<T, self::Error>;

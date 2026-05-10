@@ -19,7 +19,7 @@ impl Item for ImageItem {
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct ImageInfoItem {
     pub canonicaltitle: Option<String>,
-    pub size: Option<usize>,
+    pub size: Option<u128>,
     pub width: Option<usize>,
     pub height: Option<usize>,
     pub url: Option<String>,

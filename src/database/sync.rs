@@ -22,7 +22,7 @@ DATABASE SCHEMA
 */
 
 use crate::models::NAMESPACE;
-use crate::models::deserialize::response::{IndiscriminateResponse, Response};
+use crate::models::deserialize::response::{IndiscriminateResponse};
 use crate::models::{Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::Result};
 use reqwest::Client;
 
