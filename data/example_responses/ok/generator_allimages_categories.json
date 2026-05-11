@@ -1,0 +1,108 @@
+{
+    "continue": {
+        "clcontinue": "40158|Weapon_screenshots",
+        "continue": "||"
+    },
+    "query": {
+        "pages": {
+            "44354": {
+                "pageid": 44354,
+                "ns": 6,
+                "title": "File:'Act on Instinct'.png"
+            },
+            "44359": {
+                "pageid": 44359,
+                "ns": 6,
+                "title": "File:'Draught of Nectar'.png"
+            },
+            "44363": {
+                "pageid": 44363,
+                "ns": 6,
+                "title": "File:'Fatal Vision'.png"
+            },
+            "44352": {
+                "pageid": 44352,
+                "ns": 6,
+                "title": "File:'Laughing Behind Your Back'.png"
+            },
+            "44353": {
+                "pageid": 44353,
+                "ns": 6,
+                "title": "File:'Plasma Donor'.png"
+            },
+            "10226": {
+                "pageid": 10226,
+                "ns": 6,
+                "title": "File:((CHAOS DOGMA~)).jpg",
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Game screenshots"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Images of Scout Rifles"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Weapon screenshots"
+                    }
+                ]
+            },
+            "40158": {
+                "pageid": 40158,
+                "ns": 6,
+                "title": "File:((CHAOS DOGMA~)) fully upgraded.jpg",
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Game screenshots"
+                    }
+                ]
+            },
+            "10227": {
+                "pageid": 10227,
+                "ns": 6,
+                "title": "File:((FEVER AND REMEDY~)).jpg",
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Game screenshots"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Images of Hand Cannons"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Weapon screenshots"
+                    }
+                ]
+            },
+            "10228": {
+                "pageid": 10228,
+                "ns": 6,
+                "title": "File:((GENESIS CHAIN~)).jpg",
+                "categories": [
+                    {
+                        "ns": 14,
+                        "title": "Category:Game screenshots"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Images of Auto Rifles"
+                    },
+                    {
+                        "ns": 14,
+                        "title": "Category:Weapon screenshots"
+                    }
+                ]
+            },
+            "40159": {
+                "pageid": 40159,
+                "ns": 6,
+                "title": "File:((GENESIS CHAIN~)) fully upgraded.jpg"
+            }
+        }
+    }
+}

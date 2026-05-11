@@ -4,22 +4,21 @@ pub trait PropResults {
     fn inner_all_none(&self) -> bool;
 }
 
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub struct CategoriesProp(pub Vec<items::CategoryItem>);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct CategoriesProp(Vec<items::CategoryItem>);
+pub struct CategoryInfoProp(pub items::CatgeoryInfoItem);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct CategoryInfoProp(items::CatgeoryInfoItem);
+pub struct ImagesProp(pub Vec<items::ImageItem>);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct ImagesProp(Vec<items::ImageItem>);
-
-#[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-pub struct PageImagesProp(items::PageImageItem);
+pub struct PageImagesProp(pub items::PageImageItem);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
@@ -27,8 +26,7 @@ pub struct ImageInfoProp(pub Vec<items::ImageInfoItem>);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 #[serde(transparent)]
-pub struct InfoProp(items::PageInfoItem);
-
+pub struct InfoProp(pub items::PageInfoItem);
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct ImageInfo {
@@ -70,7 +68,6 @@ impl PropResults for InfoProp {
         items::PageInfoItem::is_empty(&self.0)
     }
 }
-
 
 // impl PropResults for ImageInfo {
 //     fn all_empty(&self) -> bool {
