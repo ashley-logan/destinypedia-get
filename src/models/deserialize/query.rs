@@ -4,11 +4,32 @@ use serde::de;
 use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
+#[serde(tag = "continue")]
 pub struct Continue {
     #[serde(rename = "continue")]
     pub contin: String,
     #[serde(flatten)]
     pub sub_cont: HashMap<String, String>,
+}
+
+impl Continue {
+    pub fn get_continue_pair(&self) -> Option<(&str, &str)> {
+        for (k, v) in &self.sub_cont {
+            if k.ends_with("continue") {
+                return Some((k.as_str(), v.as_str()));
+            }
+        }
+        None
+    }
+
+    pub fn into_tuple(self) -> Option<(String, String)> {
+        for (k, v) in self.sub_cont {
+            if k.ends_with("continue") {
+                return Some((k, v));
+            }
+        }
+        None
+    }
 }
 
 // #[derive(Debug, PartialEq, Eq)]
@@ -114,10 +135,13 @@ impl<'de> Deserialize<'de> for IndiscriminateQueryResult {
             .try_into()
             .map_err(|_| de::Error::custom("invalid request, no results returned"))?;
 
-        let ns = helper.ns.ok_or_else(|| de::Error::custom("invalid response, no namespace found"))?;
+        let ns = helper
+            .ns
+            .ok_or_else(|| de::Error::custom("invalid response, no namespace found"))?;
 
-        let title = helper.title.ok_or_else(|| de::Error::custom("invalid response, no title found"))?;
-
+        let title = helper
+            .title
+            .ok_or_else(|| de::Error::custom("invalid response, no title found"))?;
 
         let mut r = IndiscriminateQueryResult {
             pageid,
@@ -172,6 +196,4 @@ impl<'de> Deserialize<'de> for IndiscriminateQueryResult {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

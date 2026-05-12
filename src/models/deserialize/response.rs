@@ -8,8 +8,6 @@ pub trait ResponseTrait {
     fn get_continue_param(&self) -> Option<(&str, &str)>;
 }
 
-
-
 #[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct IndiscriminateResponse {
     pub cont: Option<Continue>,
@@ -23,7 +21,6 @@ impl<'de> Deserialize<'de> for IndiscriminateResponse {
     {
         let helper: IndiscriminateResponseHelper =
             IndiscriminateResponseHelper::deserialize(deserializer)?;
-
 
         Ok(IndiscriminateResponse {
             cont: helper.cont,
@@ -50,8 +47,6 @@ impl IndiscriminateResponse {
         self.results.as_slice()
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -119,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_fail_resp1() {
-         let mut p = get_data_fail_dir();
+        let mut p = get_data_fail_dir();
         p.push(Path::new("prop_info.json"));
 
         let f = File::open(p).unwrap();

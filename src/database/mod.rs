@@ -1,3 +1,3 @@
 pub mod connection;
-pub mod sync;
+pub mod fetch;
 mod models;

@@ -41,13 +41,51 @@ once 200-500 (depending on batch size) in memory, write to db
 */
 
 use crate::models::NAMESPACE;
+use crate::models::deserialize::Continue;
 use crate::models::deserialize::response::IndiscriminateResponse;
 use crate::models::{Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::Result};
+use crossbeam_channel::{Receiver, Sender, bounded};
 use reqwest::Client;
+use serde_json::from_slice;
+
+pub async fn request_worker(send: Sender<Vec<u8>>) -> Result<()> {
+    let (mut img_params, mut cat_params, mut pg_params) = (
+        get_images_sync_params()?,
+        get_categories_sync_params()?,
+        get_pages_sync_params()?,
+    );
+
+    let client = get_client();
+    let mut more_results: bool = true;
+
+    while more_results {
+        let resp = client.get("").query(&img_params).send().await?;
+
+        let resp = resp.error_for_status()?;
+
+        let b: &[u8] = &resp.bytes().await?[..];
+
+        send.send(b.to_vec());
+
+        if let Ok(cont) = from_slice::<Continue>(b) {
+            if let Some((ck, cv)) = cont.into_tuple() {
+                img_params.update_continue(ck, cv);
+                continue;
+            }
+        }
+        more_results = false;
+    }
+
+    Ok(())
+}
+
+fn get_client() -> Client {
+    Client::builder().user_agent(USER_AGENT).build().unwrap()
+}
 
 pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
-        .with_generator(Generator::allimages_with(None, Some(Limit::Num(20))))
+        .with_generator(Generator::allimages_with(None, Some(Limit::Max)))
         .with_props([Prop::ImageInfo])
         .with_extra("gaisort", "name")
         .with_extra("iiprop", "url|size|dimensions|timestamp");
@@ -61,7 +99,7 @@ pub(crate) fn get_categories_sync_params() -> Result<PARAMS<Query>> {
             None,
             None,
             None,
-            Some(Limit::Num(20)),
+            Some(Limit::Max),
         ))
         .with_props([Prop::Categories, Prop::CategoryInfo])
         .with_extra("cllimit", "max");
@@ -73,7 +111,7 @@ pub(crate) fn get_pages_sync_params() -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::allpages_with(
             Some([NAMESPACE::PAGE]),
-            Some(Limit::Num(20)),
+            Some(Limit::Max),
         ))
         .with_props([Prop::Info, Prop::PageImages]);
 
