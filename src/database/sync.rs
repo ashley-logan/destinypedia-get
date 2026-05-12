@@ -19,15 +19,31 @@ DATABASE SCHEMA
         page_id, image_id
 
     maybe: GRIMOIRE
+
+
+Sequential Requests async
+|
+get response bytes slice, pass to crossbeam_channel
+|
+Any worker takes slice and deserializes into Reponse
+|
+(possibly parallel) iterate and TryInto Row for each Result in Response
+|
+pass Row into channel/mpsc for Writer worker
+|
+prepare statement via prepare_cached
+|
+once 200-500 (depending on batch size) in memory, write to db
+
+
+
+
 */
 
 use crate::models::NAMESPACE;
-use crate::models::deserialize::response::{IndiscriminateResponse};
+use crate::models::deserialize::response::IndiscriminateResponse;
 use crate::models::{Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::Result};
 use reqwest::Client;
-
-
-
 
 pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
