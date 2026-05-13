@@ -7,5 +7,5 @@ pub mod response;
 pub use prop_results::{
     CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp,
 };
-pub use query::{Continue, IndiscriminateQueryResult};
-pub use response::IndiscriminateResponse;
+pub use query::QueryResult;
+pub use response::{Continue, QueryResponse};

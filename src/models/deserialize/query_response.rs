@@ -87,7 +87,7 @@ impl TryFrom<InfallibleQueryResult> for QueryResult {
 //     pub(crate) pages: HashMap<String, IndiscriminateQueryResult>,
 // }
 
-// pub(crate) struct IndiscriminateResponseHelper {
+// pub(crate) struct QueryResponseHelper {
 //     #[serde(rename = "continue")]
 //     pub(crate) cont: Option<Continue>,
 //     pub(crate) query: IndiscriminateQueryHelper,

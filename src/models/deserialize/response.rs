@@ -4,47 +4,56 @@ use crate::models::deserialize::query::*;
 use serde::de::Deserialize;
 use std::collections::HashMap;
 
-pub trait ResponseTrait {
-    fn get_continue_param(&self) -> Option<(&str, &str)>;
-}
-
 #[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
-pub struct IndiscriminateResponse {
-    pub cont: Option<Continue>,
-    pub results: Vec<IndiscriminateQueryResult>,
+pub struct QueryResponse {
+    pub results: Vec<QueryResult>,
 }
 
-impl<'de> Deserialize<'de> for IndiscriminateResponse {
+impl<'de> Deserialize<'de> for QueryResponse {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let helper: IndiscriminateResponseHelper =
-            IndiscriminateResponseHelper::deserialize(deserializer)?;
+        let helper: QueryResponseHelper = QueryResponseHelper::deserialize(deserializer)?;
 
-        Ok(IndiscriminateResponse {
-            cont: helper.cont,
+        Ok(QueryResponse {
             results: helper.query.pages.into_values().collect(),
         })
     }
 }
 
-impl ResponseTrait for IndiscriminateResponse {
-    fn get_continue_param(&self) -> Option<(&str, &str)> {
-        if let Some(c) = &self.cont {
-            for (k, v) in &c.sub_cont {
-                if k.ends_with("continue") {
-                    return Some((k, v));
-                }
+impl QueryResponse {
+    pub fn get_results(&self) -> &[QueryResult] {
+        self.results.as_slice()
+    }
+}
+
+#[derive(Debug, serde::Deserialize, PartialEq, Eq)]
+#[serde(tag = "continue")]
+pub struct Continue {
+    #[serde(rename = "continue")]
+    pub contin: String,
+    #[serde(flatten)]
+    pub sub_cont: HashMap<String, String>,
+}
+
+impl Continue {
+    pub fn get_continue_pair(&self) -> Option<(&str, &str)> {
+        for (k, v) in &self.sub_cont {
+            if k.ends_with("continue") {
+                return Some((k.as_str(), v.as_str()));
             }
         }
         None
     }
-}
 
-impl IndiscriminateResponse {
-    pub fn get_results(&self) -> &[IndiscriminateQueryResult] {
-        self.results.as_slice()
+    pub fn into_tuple(self) -> Option<(String, String)> {
+        for (k, v) in self.sub_cont {
+            if k.ends_with("continue") {
+                return Some((k, v));
+            }
+        }
+        None
     }
 }
 
@@ -79,7 +88,7 @@ mod tests {
 
         let mut rdr = BufReader::new(File::open(p).unwrap());
 
-        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
+        let resp: QueryResponse = from_reader(rdr).unwrap();
         dbg!(&resp);
     }
 
@@ -93,7 +102,7 @@ mod tests {
 
         let mut rdr = BufReader::new(f);
 
-        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
+        let resp: QueryResponse = from_reader(rdr).unwrap();
 
         dbg!(&resp);
     }
@@ -107,7 +116,7 @@ mod tests {
 
         let mut rdr = BufReader::new(f);
 
-        let resp: IndiscriminateResponse = from_reader(rdr).unwrap();
+        let resp: QueryResponse = from_reader(rdr).unwrap();
 
         dbg!(&resp);
     }
@@ -121,6 +130,6 @@ mod tests {
 
         let mut rdr = BufReader::new(f);
 
-        assert!(from_reader::<_, IndiscriminateResponse>(rdr).is_err());
+        assert!(from_reader::<_, QueryResponse>(rdr).is_err());
     }
 }
