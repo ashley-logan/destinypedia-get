@@ -2,6 +2,7 @@ use crossbeam_channel::{RecvError, SendError};
 use reqwest;
 use serde_json;
 use thiserror::Error;
+use rusqlite::Error as RusqlError;
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -21,6 +22,8 @@ pub enum Error {
     ChannelSendErr(#[from] SendError<Vec<u8>>),
     #[error("{0}")]
     ChannelRecieveErr(#[from] RecvError),
+    #[error("{0}")]
+    DatabaseError(#[from] RusqlError)
 }
 
 pub type Result<T> = std::result::Result<T, self::Error>;

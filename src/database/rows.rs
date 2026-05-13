@@ -3,7 +3,13 @@ use crate::models::deserialize::QueryResult;
 use crate::models::deserialize::{
     CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp, items,
 };
-use sqlx::FromRow;
+use rusqlite::ToSql;
+
+impl ToSql for SubCategoryRow {
+    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
+        
+    }
+}
 
 pub struct ImagesRow {
     id: u32,
@@ -16,19 +22,19 @@ pub struct ImagesRow {
     // category_titles: Vec<String>
 }
 pub struct CategoriesRow {
-    id: u32,
-    title: String,
-    parent_categories: Option<Vec<String>>,
+    pub id: u32,
+    pub title: String,
+    pub parent_categories: Option<Vec<String>>,
 }
 
 pub struct ImageCategoryRow {
-    image_id: u32,
-    category_title: String,
+    pub image_id: u32,
+    pub category_title: String,
 }
 
 pub struct SubCategoryRow {
-    id: u32,
-    subcategory_id: u32,
+    pub id: u32,
+    pub subcategory_id: u32,
 }
 
 impl From<(u32, u32)> for SubCategoryRow {
