@@ -27,8 +27,17 @@ pub struct ImageCategoryRow {
 }
 
 pub struct SubCategoryRow {
-    category_id: u32,
+    id: u32,
     subcategory_id: u32,
+}
+
+impl From<(u32, u32)> for SubCategoryRow {
+    fn from(value: (u32, u32)) -> Self {
+        Self {
+            id: value.0,
+            subcategory_id: value.1,
+        }
+    }
 }
 
 pub fn tryinto_images_row(query: QueryResult) -> crate::Result<ImagesRow> {

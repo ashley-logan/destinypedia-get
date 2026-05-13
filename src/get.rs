@@ -19,26 +19,40 @@ fn get_client() -> Client {
     Client::builder().user_agent(USER_AGENT).build().unwrap()
 }
 
-pub async fn request_worker(params: &mut PARAMS<Query>, send: Sender<Vec<u8>>) -> Result<()> {
+/// intial queries are built and send into the params channel
+/// producer pulls a query from the channel
+/// producer calls a request, and checks if the response container a continue value (signifying more results)
+/// producer sends response bytes to consumer
+/// consumer deserializes the response into a QueryResponse
+/// consumer processes response and transforms into Row(s)
+/// In some cases, consumer constructs a new query and sends it into the params channel
+/// consumer sends Row(s) into row channel
+/// writer recieves rows and prepares an insert statement
+/// once batch size is reached (or on final flush) writer bulk writes to the db
+
+pub async fn request_worker(recv: Receiver<PARAMS<Query>>, send: Sender<Vec<u8>>) -> Result<()> {
     let client: Client = get_client();
-    let mut more_results: bool = true;
 
-    while more_results {
-        let resp: Response = client.get(BASE).query(&params).send().await?;
+    while let Ok(mut params) = recv.recv() {
+        let mut more_results: bool = true;
 
-        let resp: Response = resp.error_for_status()?;
+        while more_results {
+            let resp: Response = client.get(BASE).query(&params).send().await?;
 
-        let b: &[u8] = &resp.bytes().await?[..];
+            let resp: Response = resp.error_for_status()?;
 
-        send.send(b.to_vec());
+            let b: Vec<u8> = resp.bytes().await?.to_vec();
 
-        match from_slice::<Continue>(b).map(|c| c.into_tuple()) {
-            Ok(Some((ck, cv))) => {
-                params.update_continue(ck, cv);
+            match from_slice::<Continue>(&b).map(|c| c.into_tuple()) {
+                Ok(Some((ck, cv))) => {
+                    params.update_continue(ck, cv);
+                }
+                _ => {
+                    more_results = false;
+                }
             }
-            _ => {
-                more_results = false;
-            }
+
+            send.send(b)?; // send owned bytes into producer-consumer channel
         }
     }
 

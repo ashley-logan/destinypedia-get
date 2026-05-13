@@ -6,6 +6,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
 pub struct QueryResponse {
+    pub pageids: Option<Vec<u32>>,
     pub results: Vec<QueryResult>,
 }
 
@@ -17,6 +18,7 @@ impl<'de> Deserialize<'de> for QueryResponse {
         let helper: QueryResponseHelper = QueryResponseHelper::deserialize(deserializer)?;
 
         Ok(QueryResponse {
+            pageids: helper.query.pageids,
             results: helper.query.pages.into_values().collect(),
         })
     }

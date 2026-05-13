@@ -18,6 +18,8 @@ pub struct Query {
     pub prop: Option<Vec<Prop>>,
     #[serde(flatten)]
     pub generator: Option<Generator>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub indexpageids: bool,
     #[serde_as(as = "Option<ContinueStruct>")]
     #[serde(flatten)]
     pub cont: Option<(String, String)>,
@@ -44,12 +46,19 @@ pub enum Generator {
         gaclimit: Limit,
     },
     CategoryMembers {
-        gcmtitle: String,
+        #[serde(flatten)]
+        identifier: GcmIdentifier,
         #[serde_as(as = "Option<ListString>")]
         gcmnamespace: Option<Vec<NAMESPACE>>,
         gcmlimit: Limit,
     },
     Random,
+}
+#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Clone)]
+#[serde(rename_all = "lowercase")]
+pub enum GcmIdentifier {
+    GcmTitle(String),
+    GcmPageid(u32),
 }
 
 impl Generator {
@@ -85,12 +94,12 @@ impl Generator {
     }
 
     pub fn categorymembers_with(
-        gcmtitle: impl Into<String>,
+        identifier: GcmIdentifier,
         gcmnamespace: Option<Vec<NAMESPACE>>,
         gcmlimit: Option<Limit>,
     ) -> Self {
         Generator::CategoryMembers {
-            gcmtitle: gcmtitle.into(),
+            identifier,
             gcmnamespace,
             gcmlimit: gcmlimit.unwrap_or_default(),
         }
@@ -105,7 +114,7 @@ mod tests {
     #[test]
     fn test_generator_success() {
         let g = Generator::CategoryMembers {
-            gcmtitle: "Category:Test".into(),
+            identifier: GcmIdentifier::GcmTitle("Category:Test".into()),
             gcmnamespace: Some(vec![NAMESPACE::CATEGORY, NAMESPACE::PAGE]),
             gcmlimit: Limit::Max,
         };
@@ -113,10 +122,7 @@ mod tests {
         assert_ser_tokens(
             &g,
             &[
-                Token::Struct {
-                    name: "Generator",
-                    len: 5,
-                },
+                Token::Map { len: None },
                 Token::Str("generator"),
                 Token::Str("categorymembers"),
                 Token::Str("gcmtitle"),
@@ -126,7 +132,7 @@ mod tests {
                 Token::Str("14|0"),
                 Token::Str("gcmlimit"),
                 Token::Str("max"),
-                Token::StructEnd,
+                Token::MapEnd,
             ],
         );
     }
@@ -134,13 +140,12 @@ mod tests {
     #[test]
     fn test_generator_constructor() {
         let g = Generator::allimages_with(None, Some(Limit::Num(20)));
-
         assert_ser_tokens(
             &g,
             &[
                 Token::Struct {
                     name: "Generator",
-                    len: 3,
+                    len: 2,
                 },
                 Token::Str("generator"),
                 Token::Str("allimages"),
@@ -158,6 +163,7 @@ mod tests {
             pageids: None,
             prop: Some(vec![Prop::Info, Prop::CategoryInfo, Prop::ImageInfo]),
             generator: None,
+            indexpageids: false,
             cont: None,
         };
 

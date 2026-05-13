@@ -4,8 +4,6 @@ use serde::Deserialize;
 use serde_with::{DefaultOnError, TryFromInto};
 use std::collections::HashMap;
 
-
-
 #[serde_with::serde_as]
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct QueryResultHelper {
@@ -25,6 +23,7 @@ pub(crate) struct QueryResultHelper {
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct IndiscriminateQueryHelper {
+    pub(crate) pageids: Option<Vec<u32>>,
     pub(crate) pages: HashMap<String, QueryResult>,
 }
 

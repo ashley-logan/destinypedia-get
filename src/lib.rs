@@ -5,6 +5,7 @@ mod models;
 mod parse;
 mod prebuilt;
 pub use cli::CLI;
+pub use database::{CategoriesRow, ImageCategoryRow, ImagesRow, SubCategoryRow};
 pub use models::deserialize;
 pub use models::error::{Error, Result};
 pub use models::serialize;

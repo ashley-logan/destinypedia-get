@@ -1,3 +1,4 @@
 pub mod connection;
 pub mod fetch;
-mod models;
+mod rows;
+pub use rows::{CategoriesRow, ImageCategoryRow, ImagesRow, SubCategoryRow};

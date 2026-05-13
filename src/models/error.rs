@@ -1,3 +1,4 @@
+use crossbeam_channel::{RecvError, SendError};
 use reqwest;
 use serde_json;
 use thiserror::Error;
@@ -16,6 +17,10 @@ pub enum Error {
     TryIntoQueryResult,
     #[error("Error converting a response result into a row struct")]
     TryFromResponseIntoRow,
+    #[error("{0}")]
+    ChannelSendErr(#[from] SendError<Vec<u8>>),
+    #[error("{0}")]
+    ChannelRecieveErr(#[from] RecvError),
 }
 
 pub type Result<T> = std::result::Result<T, self::Error>;

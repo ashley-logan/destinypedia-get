@@ -1,7 +1,7 @@
 pub mod params;
 pub mod query;
 pub use params::{Format, PARAMS, ParamsBuilder};
-pub use query::{Generator, Query};
+pub use query::{GcmIdentifier, Generator, Query};
 pub mod properties;
 pub use properties::Prop;
 pub mod ser_types;
@@ -28,9 +28,10 @@ impl Into<u16> for NAMESPACE {
     }
 }
 
-
 #[repr(u16)]
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, derive_more::TryFrom)]
+#[derive(
+    Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, derive_more::TryFrom,
+)]
 #[try_from(repr)]
 pub enum NAMESPACE {
     PAGE = 0,

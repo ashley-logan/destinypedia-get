@@ -188,6 +188,11 @@ impl ParamsBuilder<Query> {
         self
     }
 
+    pub fn with_indexpageids(mut self, ind: bool) -> Self {
+        self.params.indexpageids = ind;
+        self
+    }
+
     /// Inplace method for adding titles
     /// Appends the provided collection of titles to self
     /// Can be used even when self.params.titles is None
@@ -216,6 +221,10 @@ impl ParamsBuilder<Query> {
 
     pub fn set_generator(&mut self, generator_: Generator) {
         self.params.generator = Some(generator_);
+    }
+
+    pub fn set_indexpageids(&mut self, ind: bool) {
+        self.params.indexpageids = ind;
     }
 
     pub fn set_continue_value(&mut self, cval: impl Into<String>) -> Result<()> {
