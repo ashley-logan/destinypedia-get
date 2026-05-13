@@ -1,9 +1,9 @@
-use dirs;
-use rusqlite::{Connection};
-use std::path::{PathBuf, Path};
-use std::env;
 use crate::SubCategoryRow;
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, unbounded};
+use dirs;
+use rusqlite::{Batch, Connection, Transaction};
+use std::env;
+use std::path::{Path, PathBuf};
 /*
 DATABASE SCHEMA
     IMAGES
@@ -26,54 +26,45 @@ DATABASE SCHEMA
     maybe: GRIMOIRE
 */
 
-pub fn write_db_subcategories(conn: &mut Connection, recv: Receiver<SubCategoryRow>) -> crate::Result<()> {
-    let mut tx = conn.transaction()?;
+pub fn write_db_subcategories(
+    conn: &Connection,
+    recv: Receiver<SubCategoryRow>,
+) -> crate::Result<()> {
+    let mut tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
     let mut insert_count = 0_u32;
 
-    let mut stmt = tx.prepare_cached(
+    let mut stmt = conn.prepare_cached(
         r"
         INSERT INTO SUBCATEGORIES (category_id, subcategory_id)
-        VALUES (?1, ?2)"
+        VALUES (?1, ?2)",
     )?;
-
     while let Ok(row) = recv.recv() {
         stmt.execute((row.id, row.subcategory_id))?;
         insert_count += 1;
 
         if insert_count >= 300 {
             tx.commit()?;
-            tx = conn.transaction()?;
-            stmt = tx.prepare_cached(
-                r"
-                INSERT INTO SUBCATEGORIES (category_id, subcategory_id)
-                VALUES (?1, ?2)"
-                )?;
+            tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
             insert_count = 0;
         }
-
     }
-
-    if insert_count > 0 {
-        tx.commit()?;
-    }
+    drop(stmt);
+    tx.commit()?;
 
     Ok(())
-
-    
 }
 
-fn create_tables() {
+fn create_tables(conn_path: PathBuf) {
     // let ddir: PathBuf = dirs::data_dir().expect("ERROR: Couldn't find data directory");
     // let DB_URL = format!(
     //     "sqlite://{}",
     //     ddir.join("destinypedia.db").to_string_lossy()
     // );
 
-    let conn = Connection::open_in_memory().unwrap();
+    let mut conn = Connection::open(conn_path).unwrap();
     conn.pragma_update(None, "journal_mode", "WAL").unwrap();
-
-
-    conn.execute(
+    let tx = conn.transaction().unwrap();
+    tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS IMAGES (
                 id INTEGER PRIMARY KEY,
@@ -84,10 +75,12 @@ fn create_tables() {
                 height INTEGER,
                 timestamp TEXT
 
-            )", ()
-    ).unwrap();
+            )",
+        (),
+    )
+    .unwrap();
 
-    conn.execute(
+    tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS IMAGE_CATEGORIES (
                 image_id INTEGER NOT NULL,
@@ -95,20 +88,24 @@ fn create_tables() {
                 FOREIGN KEY (image_id) REFERENCES images(id),
                 FOREIGN KEY (category_id) REFERENCES categories(id)
 
-            )", ()
-    ).unwrap();
+            )",
+        (),
+    )
+    .unwrap();
 
-    conn.execute(
+    tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS CATEGORIES (
                 id INTEGER PRIMARY KEY,
                 title TEXT NOT NULL,
                 subcats INTEGER,
                 files INTEGER
-            )", ()
-    ).unwrap();
+            )",
+        (),
+    )
+    .unwrap();
 
-     conn.execute(
+    tx.execute(
         r#"
             CREATE TABLE IF NOT EXISTS SUBCATEGORIES (
                 category_id INTEGER NOT NULL,
@@ -116,6 +113,43 @@ fn create_tables() {
                 FOREIGN KEY (category_id) REFERENCES categories(id),
                 FOREIGN KEY (subcategory_id) REFERENCES categories(id)
 
-            )"#, ()
-    ).unwrap();
+            )"#,
+        (),
+    )
+    .unwrap();
+
+    tx.commit().unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+
+    #[test]
+    fn test_table_creation() {
+        create_tables(PathBuf::from("data/dev.db"));
+    }
+
+    #[test]
+    fn test_writer_small() {
+        let (sx, rx) = unbounded::<SubCategoryRow>();
+        create_tables("data/dev.db".into());
+        let conn = Connection::open("data/dev.db").unwrap();
+
+        let mut ids: std::ops::Range<u32> = 0..1000;
+        let mut subids: std::ops::Range<u32> = 200..1200;
+
+        thread::scope(|s| {
+            s.spawn(move || {
+                write_db_subcategories(&conn, rx).unwrap();
+            });
+            s.spawn(move || {
+                for _ in 0..1000 {
+                    let (id, subid) = (ids.next().unwrap(), subids.next().unwrap());
+                    sx.send(SubCategoryRow::from((id, subid))).unwrap();
+                }
+            });
+        });
+    }
 }

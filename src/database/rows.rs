@@ -3,22 +3,15 @@ use crate::models::deserialize::QueryResult;
 use crate::models::deserialize::{
     CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp, items,
 };
-use rusqlite::ToSql;
-
-impl ToSql for SubCategoryRow {
-    fn to_sql(&self) -> rusqlite::Result<rusqlite::types::ToSqlOutput<'_>> {
-        
-    }
-}
 
 pub struct ImagesRow {
-    id: u32,
-    title: String,
-    size: u128,
-    width: usize,
-    height: usize,
-    url: String,
-    timestamp: String,
+    pub id: u32,
+    pub title: String,
+    pub size: u128,
+    pub width: usize,
+    pub height: usize,
+    pub url: String,
+    pub timestamp: String,
     // category_titles: Vec<String>
 }
 pub struct CategoriesRow {
