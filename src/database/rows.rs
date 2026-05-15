@@ -1,15 +1,23 @@
 use crate::models::NAMESPACE;
 use crate::models::deserialize::QueryResult;
+use crate::models::deserialize::items::*;
 use crate::models::deserialize::{
-    CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp, items,
+    CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp,
 };
+
+pub enum Row {
+    Images(ImagesRow),
+    Categories(CategoriesRow),
+    ImageCategory(ImageCategoryRow),
+    SubCategory(SubCategoryRow),
+}
 
 pub struct ImagesRow {
     pub id: u32,
     pub title: String,
     pub size: u128,
-    pub width: usize,
-    pub height: usize,
+    pub width: u32,
+    pub height: u32,
     pub url: String,
     pub timestamp: String,
     // category_titles: Vec<String>
@@ -17,12 +25,13 @@ pub struct ImagesRow {
 pub struct CategoriesRow {
     pub id: u32,
     pub title: String,
-    pub parent_categories: Option<Vec<String>>,
+    pub files: u32,
+    pub subcats: u32,
 }
 
 pub struct ImageCategoryRow {
     pub image_id: u32,
-    pub category_title: String,
+    pub category_id: u32,
 }
 
 pub struct SubCategoryRow {
@@ -39,13 +48,11 @@ impl From<(u32, u32)> for SubCategoryRow {
     }
 }
 
-pub fn tryinto_images_row(query: QueryResult) -> crate::Result<ImagesRow> {
-    if !matches!(query.ns, NAMESPACE::FILE) {
-        return Err(crate::Error::TryFromResponseIntoRow);
-    }
+pub fn into_images_row(query: QueryResult) -> crate::Result<ImagesRow> {
+    debug_assert!(!matches!(query.ns, NAMESPACE::FILE)); // this check should happen in the caller
     match query.imageinfo.map(|ii| ii.0.into_iter().next()) {
         Some(Some(item)) => match item {
-            items::ImageInfoItem {
+            ImageInfoItem {
                 canonicaltitle: Some(title),
                 size: Some(size),
                 width: Some(width),
@@ -68,23 +75,28 @@ pub fn tryinto_images_row(query: QueryResult) -> crate::Result<ImagesRow> {
     }
 }
 
-pub fn tryinto_categories_row(query: QueryResult) -> crate::Result<CategoriesRow> {
-    if !matches!(query.ns, NAMESPACE::CATEGORY) {
-        return Err(crate::Error::TryFromResponseIntoRow);
+pub fn into_categories_row(query: QueryResult) -> crate::Result<CategoriesRow> {
+    debug_assert!(!matches!(query.ns, NAMESPACE::CATEGORY)); // this check should happen in the caller
+    match query.categoryinfo {
+        Some(CategoryInfoProp(CatgeoryInfoItem {
+            files: Some(files_),
+            subcats: Some(subcats_),
+            ..
+        })) => Ok(CategoriesRow {
+            id: query.pageid,
+            title: query.title,
+            files: files_,
+            subcats: subcats_,
+        }),
+        _ => Err(crate::Error::TryFromResponseIntoRow),
     }
-
-    let cprop: CategoriesProp = query
-        .categories
-        .ok_or_else(|| crate::Error::TryFromResponseIntoRow)?;
-    let parent_categories: Option<Vec<String>> =
-        Some(cprop.0.into_iter().map(|item| item.title).collect());
-
-    Ok(CategoriesRow {
-        id: query.pageid,
-        title: query.title,
-        parent_categories,
-    })
 }
+
+/// Super cheap to clone, so QueryResult is taken by reference.
+/// as a rule of thumb, methods converting a QueryResult into a purely relational table row should be called
+/// before methods converting a QueryResult into a regular, data-heavy table row.
+/// This is because it's cheaper to crate relational rows and therefore they are created via cloning
+/// rather than transferring ownership
 
 mod ref_rows {
     use super::*;
@@ -92,8 +104,8 @@ mod ref_rows {
         id: u32,
         title: &'a str,
         size: u128,
-        width: usize,
-        height: usize,
+        width: u32,
+        height: u32,
         url: &'a str,
         timestamp: &'a str,
         // category_titles: Vec<String>

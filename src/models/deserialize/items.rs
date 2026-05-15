@@ -20,8 +20,8 @@ impl Item for ImageItem {
 pub struct ImageInfoItem {
     pub canonicaltitle: Option<String>,
     pub size: Option<u128>,
-    pub width: Option<usize>,
-    pub height: Option<usize>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
     pub url: Option<String>,
     pub timestamp: Option<String>,
 }
@@ -60,10 +60,10 @@ impl Item for CategoryItem {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct CatgeoryInfoItem {
-    pub size: Option<usize>,
-    pub pages: Option<usize>,
-    pub files: Option<usize>,
-    pub subcats: Option<usize>,
+    pub size: Option<u32>,
+    pub pages: Option<u32>,
+    pub files: Option<u32>,
+    pub subcats: Option<u32>,
 }
 
 impl Item for CatgeoryInfoItem {
@@ -103,14 +103,14 @@ impl Item for PageImageItem {
 pub struct Original {
     // for PageImageItem only
     pub source: String,
-    pub width: usize,
-    pub height: usize,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct PageInfoItem {
     pub contentmodel: Option<String>,
-    pub length: Option<usize>,
+    pub length: Option<u32>,
 }
 
 impl Item for PageInfoItem {

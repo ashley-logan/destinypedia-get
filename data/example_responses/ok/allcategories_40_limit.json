@@ -1,0 +1,762 @@
+{
+  "batchcomplete": "",
+  "continue": {
+    "gaccontinue": "Articles_with_incomplete_sections",
+    "continue": "gaccontinue||"
+  },
+  "query": {
+    "pages": {
+      "50116": {
+        "pageid": 50116,
+        "ns": 14,
+        "title": "Category:ARG",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Lore"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Promotional material"
+          }
+        ],
+        "categoryinfo": {
+          "size": 3,
+          "pages": 3,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "31963": {
+        "pageid": 31963,
+        "ns": 14,
+        "title": "Category:Abilities",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Gameplay mechanics"
+          }
+        ],
+        "categoryinfo": {
+          "size": 4,
+          "pages": 2,
+          "files": 0,
+          "subcats": 2
+        }
+      },
+      "5473": {
+        "pageid": 5473,
+        "ns": 14,
+        "title": "Category:Activities",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Gameplay mechanics"
+          }
+        ],
+        "categoryinfo": {
+          "size": 161,
+          "pages": 145,
+          "files": 4,
+          "subcats": 12
+        }
+      },
+      "53011": {
+        "pageid": 53011,
+        "ns": 14,
+        "title": "Category:Activities/Rising",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Gameplay mechanics/Rising"
+          }
+        ],
+        "categoryinfo": {
+          "size": 1,
+          "pages": 0,
+          "files": 0,
+          "subcats": 1
+        }
+      },
+      "31976": {
+        "pageid": 31976,
+        "ns": 14,
+        "title": "Category:Activity fan fiction",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Fan Fiction"
+          }
+        ],
+        "categoryinfo": {
+          "size": 43,
+          "pages": 43,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "9758": {
+        "pageid": 9758,
+        "ns": 14,
+        "title": "Category:Administration",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Destinypedia"
+          }
+        ],
+        "categoryinfo": {
+          "size": 5,
+          "pages": 0,
+          "files": 0,
+          "subcats": 5
+        }
+      },
+      "13105": {
+        "pageid": 13105,
+        "ns": 14,
+        "title": "Category:Adventures",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Activities"
+          }
+        ],
+        "categoryinfo": {
+          "size": 54,
+          "pages": 54,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "2156": {
+        "pageid": 2156,
+        "ns": 14,
+        "title": "Category:Advertisements",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Promotional material"
+          }
+        ],
+        "categoryinfo": {
+          "size": 1,
+          "pages": 0,
+          "files": 1,
+          "subcats": 0
+        }
+      },
+      "22914": {
+        "pageid": 22914,
+        "ns": 14,
+        "title": "Category:Aeronautics of China employees",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Golden Age characters"
+          }
+        ],
+        "categoryinfo": {
+          "size": 19,
+          "pages": 19,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "15056": {
+        "pageid": 15056,
+        "ns": 14,
+        "title": "Category:Ahamkara",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Paracausal entities"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Species"
+          }
+        ],
+        "categoryinfo": {
+          "size": 71,
+          "pages": 70,
+          "files": 0,
+          "subcats": 1
+        }
+      },
+      "52968": {
+        "pageid": 52968,
+        "ns": 14,
+        "title": "Category:Ahamkara/Rising",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Paracausal entities/Rising"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Species/Rising"
+          }
+        ],
+        "categoryinfo": {
+          "size": 1,
+          "pages": 1,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "54932": {
+        "pageid": 54932,
+        "ns": 14,
+        "title": "Category:Ahamkara characters",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Ahamkara"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Characters"
+          }
+        ],
+        "categoryinfo": {
+          "size": 9,
+          "pages": 9,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "49966": {
+        "pageid": 49966,
+        "ns": 14,
+        "title": "Category:Aionian",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Characters"
+          }
+        ],
+        "categoryinfo": {
+          "size": 9,
+          "pages": 9,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "45759": {
+        "pageid": 45759,
+        "ns": 14,
+        "title": "Category:Allies",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Destiny universe"
+          }
+        ],
+        "categoryinfo": {
+          "size": 59,
+          "pages": 59,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "52914": {
+        "pageid": 52914,
+        "ns": 14,
+        "title": "Category:Allies/Rising",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Rising Timeline"
+          }
+        ],
+        "categoryinfo": {
+          "size": 12,
+          "pages": 12,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "45760": {
+        "pageid": 45760,
+        "ns": 14,
+        "title": "Category:Ally fan fiction",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Fan Fiction"
+          }
+        ],
+        "categoryinfo": {
+          "size": 184,
+          "pages": 184,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "31999": {
+        "pageid": 31999,
+        "ns": 14,
+        "title": "Category:Ambient life",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Destiny universe"
+          }
+        ],
+        "categoryinfo": {
+          "size": 2,
+          "pages": 0,
+          "files": 0,
+          "subcats": 2
+        }
+      },
+      "11432": {
+        "pageid": 11432,
+        "ns": 14,
+        "title": "Category:Animals",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Ambient life"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Species"
+          }
+        ],
+        "categoryinfo": {
+          "size": 31,
+          "pages": 30,
+          "files": 0,
+          "subcats": 1
+        }
+      },
+      "465": {
+        "pageid": 465,
+        "ns": 14,
+        "title": "Category:Appearance templates",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Templates"
+          }
+        ],
+        "categoryinfo": {
+          "size": 12,
+          "pages": 12,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "5475": {
+        "pageid": 5475,
+        "ns": 14,
+        "title": "Category:Apps",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Games"
+          }
+        ],
+        "categoryinfo": {
+          "size": 2,
+          "pages": 2,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "37791": {
+        "pageid": 37791,
+        "ns": 14,
+        "title": "Category:Arena",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Activities"
+          }
+        ],
+        "categoryinfo": {
+          "size": 17,
+          "pages": 17,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "1684": {
+        "pageid": 1684,
+        "ns": 14,
+        "title": "Category:Armor",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Gear"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Military technology"
+          }
+        ],
+        "categoryinfo": {
+          "size": 34,
+          "pages": 25,
+          "files": 3,
+          "subcats": 6
+        }
+      },
+      "31925": {
+        "pageid": 31925,
+        "ns": 14,
+        "title": "Category:Armor by class",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 3,
+          "pages": 0,
+          "files": 0,
+          "subcats": 3
+        }
+      },
+      "31927": {
+        "pageid": 31927,
+        "ns": 14,
+        "title": "Category:Armor by manufacturer",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 1,
+          "pages": 0,
+          "files": 0,
+          "subcats": 1
+        }
+      },
+      "31926": {
+        "pageid": 31926,
+        "ns": 14,
+        "title": "Category:Armor by rarity",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 5,
+          "pages": 0,
+          "files": 0,
+          "subcats": 5
+        }
+      },
+      "31928": {
+        "pageid": 31928,
+        "ns": 14,
+        "title": "Category:Armor by type",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 5,
+          "pages": 0,
+          "files": 0,
+          "subcats": 5
+        }
+      },
+      "31930": {
+        "pageid": 31930,
+        "ns": 14,
+        "title": "Category:Armor by year",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 3,
+          "pages": 0,
+          "files": 0,
+          "subcats": 3
+        }
+      },
+      "25272": {
+        "pageid": 25272,
+        "ns": 14,
+        "title": "Category:Armor lore",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Lore"
+          }
+        ],
+        "categoryinfo": {
+          "size": 107,
+          "pages": 106,
+          "files": 1,
+          "subcats": 0
+        }
+      },
+      "4343": {
+        "pageid": 4343,
+        "ns": 14,
+        "title": "Category:Armor screenshots",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Screenshots by subject"
+          }
+        ],
+        "categoryinfo": {
+          "size": 977,
+          "pages": 0,
+          "files": 977,
+          "subcats": 0
+        }
+      },
+      "2430": {
+        "pageid": 2430,
+        "ns": 14,
+        "title": "Category:Armor sets",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Armor"
+          }
+        ],
+        "categoryinfo": {
+          "size": 248,
+          "pages": 239,
+          "files": 9,
+          "subcats": 0
+        }
+      },
+      "24767": {
+        "pageid": 24767,
+        "ns": 14,
+        "title": "Category:Art books",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Books"
+          }
+        ],
+        "categoryinfo": {
+          "size": 6,
+          "pages": 6,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "9756": {
+        "pageid": 9756,
+        "ns": 14,
+        "title": "Category:Articles needing an image",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 587,
+          "pages": 587,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "41519": {
+        "pageid": 41519,
+        "ns": 14,
+        "title": "Category:Articles needing categorization",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 0,
+          "pages": 0,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "442": {
+        "pageid": 442,
+        "ns": 14,
+        "title": "Category:Articles needing cleanup",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 62,
+          "pages": 59,
+          "files": 0,
+          "subcats": 3,
+          "hidden": ""
+        }
+      },
+      "444": {
+        "pageid": 444,
+        "ns": 14,
+        "title": "Category:Articles needing fact cleanup",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Articles needing cleanup"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 415,
+          "pages": 415,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "56020": {
+        "pageid": 56020,
+        "ns": 14,
+        "title": "Category:Articles needing summarization",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 6,
+          "pages": 6,
+          "files": 0,
+          "subcats": 0
+        }
+      },
+      "1148": {
+        "pageid": 1148,
+        "ns": 14,
+        "title": "Category:Articles under construction",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 15,
+          "pages": 15,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "20308": {
+        "pageid": 20308,
+        "ns": 14,
+        "title": "Category:Articles with broken file links",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Pages with broken file links"
+          }
+        ],
+        "categoryinfo": {
+          "size": 0,
+          "pages": 0,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "813": {
+        "pageid": 813,
+        "ns": 14,
+        "title": "Category:Articles with conjectural titles",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 71,
+          "pages": 71,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      },
+      "9592": {
+        "pageid": 9592,
+        "ns": 14,
+        "title": "Category:Articles with conjecture",
+        "categories": [
+          {
+            "ns": 14,
+            "title": "Category:Marked articles"
+          },
+          {
+            "ns": 14,
+            "title": "Category:Meta categories"
+          }
+        ],
+        "categoryinfo": {
+          "size": 0,
+          "pages": 0,
+          "files": 0,
+          "subcats": 0,
+          "hidden": ""
+        }
+      }
+    }
+  },
+  "limits": {
+    "categories": 500
+  }
+}

@@ -2,14 +2,14 @@ mod cli;
 mod database;
 mod get;
 mod models;
-mod parse;
 mod prebuilt;
+mod sync;
 pub use cli::CLI;
-pub use database::{CategoriesRow, ImageCategoryRow, ImagesRow, SubCategoryRow};
+pub use database::Row;
 pub use models::deserialize;
-pub use models::error::{Error, Result};
+pub use models::error::{self, Error, Result};
 pub use models::serialize;
-pub use models::{Continue, PARAMS, ParamsBuilder, QueryResponse};
+pub use models::{Continue, PARAMS, ParamsBuilder, Prop, QueryResponse};
 pub use prebuilt::{category_members, image_info, images, page_images};
 /*
 action=query&list=search&srsearch=zavala&srnamespace=100&srlimit=max&srwhat=txt&srprop=titlesnippet|sectionsnippet|sectiontitle|size|timestamp&srsort=just_match&format=jsonfm

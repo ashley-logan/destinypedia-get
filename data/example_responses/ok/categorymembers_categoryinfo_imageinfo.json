@@ -1,0 +1,162 @@
+{
+  "batchcomplete": "",
+  "continue": {
+    "gcmcontinue": "file|2a525046044c3a34403204503240324232504c5a083c4836011c01dcc2dcc1dc10|3738",
+    "continue": "gcmcontinue||"
+  },
+  "query": {
+    "pageids": [
+      "24791",
+      "30356",
+      "371",
+      "33824",
+      "365",
+      "374",
+      "51737",
+      "51738",
+      "51739",
+      "33448"
+    ],
+    "pages": {
+      "24791": {
+        "pageid": 24791,
+        "ns": 14,
+        "title": "Category:Artwork",
+        "categoryinfo": {
+          "size": 1489,
+          "pages": 0,
+          "files": 1485,
+          "subcats": 4
+        }
+      },
+      "30356": {
+        "pageid": 30356,
+        "ns": 14,
+        "title": "Category:Game captures",
+        "categoryinfo": {
+          "size": 193,
+          "pages": 0,
+          "files": 193,
+          "subcats": 0
+        }
+      },
+      "371": {
+        "pageid": 371,
+        "ns": 14,
+        "title": "Category:Game renders",
+        "categoryinfo": {
+          "size": 1362,
+          "pages": 0,
+          "files": 1362,
+          "subcats": 0
+        }
+      },
+      "33824": {
+        "pageid": 33824,
+        "ns": 14,
+        "title": "Category:Icons",
+        "categoryinfo": {
+          "size": 25,
+          "pages": 0,
+          "files": 19,
+          "subcats": 6
+        }
+      },
+      "365": {
+        "pageid": 365,
+        "ns": 14,
+        "title": "Category:Logos",
+        "categoryinfo": {
+          "size": 64,
+          "pages": 0,
+          "files": 64,
+          "subcats": 0
+        }
+      },
+      "374": {
+        "pageid": 374,
+        "ns": 14,
+        "title": "Category:Screenshots",
+        "categoryinfo": {
+          "size": 22,
+          "pages": 0,
+          "files": 18,
+          "subcats": 4
+        }
+      },
+      "51737": {
+        "pageid": 51737,
+        "ns": 6,
+        "title": "File:Aion Archives 1.gif",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "timestamp": "2025-09-25T11:39:40Z",
+            "size": 13446,
+            "width": 442,
+            "height": 50,
+            "canonicaltitle": "File:Aion Archives 1.gif",
+            "url": "https://destiny.wiki.gallery/images/7/7b/Aion_Archives_1.gif",
+            "descriptionurl": "https://www.destinypedia.com/File:Aion_Archives_1.gif",
+            "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=51737"
+          }
+        ]
+      },
+      "51738": {
+        "pageid": 51738,
+        "ns": 6,
+        "title": "File:Aion Archives 2.gif",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "timestamp": "2025-09-25T11:40:15Z",
+            "size": 5135,
+            "width": 442,
+            "height": 51,
+            "canonicaltitle": "File:Aion Archives 2.gif",
+            "url": "https://destiny.wiki.gallery/images/9/9e/Aion_Archives_2.gif",
+            "descriptionurl": "https://www.destinypedia.com/File:Aion_Archives_2.gif",
+            "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=51738"
+          }
+        ]
+      },
+      "51739": {
+        "pageid": 51739,
+        "ns": 6,
+        "title": "File:Aion Archives 3.gif",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "timestamp": "2025-09-25T11:40:39Z",
+            "size": 16078,
+            "width": 442,
+            "height": 49,
+            "duration": 3.3,
+            "canonicaltitle": "File:Aion Archives 3.gif",
+            "url": "https://destiny.wiki.gallery/images/d/d0/Aion_Archives_3.gif",
+            "descriptionurl": "https://www.destinypedia.com/File:Aion_Archives_3.gif",
+            "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=51739"
+          }
+        ]
+      },
+      "33448": {
+        "pageid": 33448,
+        "ns": 6,
+        "title": "File:AstroD.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "timestamp": "2022-09-04T17:16:24Z",
+            "size": 154807,
+            "width": 1024,
+            "height": 576,
+            "canonicaltitle": "File:AstroD.jpg",
+            "url": "https://destiny.wiki.gallery/images/9/90/AstroD.jpg",
+            "descriptionurl": "https://www.destinypedia.com/File:AstroD.jpg",
+            "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=33448"
+          }
+        ]
+      }
+    }
+  }
+}

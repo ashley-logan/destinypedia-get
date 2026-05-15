@@ -41,8 +41,8 @@ pub enum Generator {
     },
     AllCategories {
         gacprefix: Option<String>,
-        gacmin: Option<usize>,
-        gacmax: Option<usize>,
+        gacmin: Option<u32>,
+        gacmax: Option<u32>,
         gaclimit: Limit,
     },
     CategoryMembers {
@@ -81,8 +81,8 @@ impl Generator {
 
     pub fn allcategories_with(
         gacprefix: Option<String>,
-        gacmin: Option<usize>,
-        gacmax: Option<usize>,
+        gacmin: Option<u32>,
+        gacmax: Option<u32>,
         gaclimit: Option<Limit>,
     ) -> Self {
         Generator::AllCategories {

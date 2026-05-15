@@ -6,7 +6,10 @@
 */
 
 use crate::serialize;
-use crate::{Continue, Error, PARAMS, ParamsBuilder, Result, serialize::Query};
+use crate::{
+    Continue, Error, PARAMS, ParamsBuilder, Prop, Result, error::SendErrorGeneric,
+    models::NAMESPACE, serialize::Query,
+};
 use crossbeam_channel::{Receiver, Sender, bounded};
 use reqwest::{Client, Response};
 use serde::de::DeserializeOwned;
@@ -30,16 +33,31 @@ fn get_client() -> Client {
 /// writer recieves rows and prepares an insert statement
 /// once batch size is reached (or on final flush) writer bulk writes to the db
 
-pub async fn request_worker(recv: Receiver<PARAMS<Query>>, send: Sender<Vec<u8>>) -> Result<()> {
+pub async fn category_members_params_producer(
+    recv: Receiver<u32>,
+    send: Sender<PARAMS<Query>>,
+) -> Result<usize> {
+    let mut num_requests: usize = 0;
+    while let Ok(id) = recv.recv() {
+        let params: PARAMS<Query> = get_category_members_sync_params(id)?;
+        send.send(params)
+            .expect("failed to send query parameters to cm_request_worker");
+        num_requests += 1;
+    }
+    Ok(num_requests)
+}
+
+pub async fn cm_request_worker(recv: Receiver<u32>, send: Sender<(u32, Vec<u8>)>) -> Result<()> {
     let client: Client = get_client();
 
-    while let Ok(mut params) = recv.recv() {
+    while let Ok(id) = recv.recv() {
+        let mut params: PARAMS<Query> = get_category_members_sync_params(id.clone())?;
         let mut more_results: bool = true;
 
         while more_results {
             let resp: Response = client.get(BASE).query(&params).send().await?;
 
-            let resp: Response = resp.error_for_status()?;
+            resp.error_for_status_ref()?;
 
             let b: Vec<u8> = resp.bytes().await?.to_vec();
 
@@ -52,7 +70,7 @@ pub async fn request_worker(recv: Receiver<PARAMS<Query>>, send: Sender<Vec<u8>>
                 }
             }
 
-            send.send(b)?; // send owned bytes into producer-consumer channel
+            send.send((id, b)).unwrap(); // send owned bytes into producer-consumer channel
         }
     }
 
@@ -86,20 +104,22 @@ pub(crate) fn get_categories_sync_params() -> Result<PARAMS<Query>> {
     builder.build()
 }
 
-pub(crate) fn get_pages_sync_params() -> Result<PARAMS<Query>> {
+pub(crate) fn get_category_members_sync_params(pageid: u32) -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
-        .with_generator(serialize::Generator::allpages_with(
-            Some([crate::models::NAMESPACE::PAGE]),
+        .with_generator(serialize::Generator::categorymembers_with(
+            serialize::GcmIdentifier::GcmPageid(pageid),
+            Some(vec![NAMESPACE::CATEGORY, NAMESPACE::FILE]),
             Some(serialize::Limit::Max),
         ))
-        .with_props([serialize::Prop::Info, serialize::Prop::PageImages]);
-
+        .with_props([Prop::ImageInfo, Prop::CategoryInfo])
+        .with_extra("iiprop", "url|timestamp|dimensions|size|canonicaltitle");
     builder.build()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::QueryResponse;
     use reqwest::{Client, Response};
 
     static BASE: &str = "https://www.destinypedia.com/api.php";
@@ -110,7 +130,9 @@ mod tests {
 
         let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
 
-        assert!(r.status().is_success())
+        assert!(r.status().is_success());
+
+        let _json: QueryResponse = r.json().await.unwrap();
     }
 
     #[tokio::test]
@@ -119,14 +141,18 @@ mod tests {
 
         let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
 
-        assert!(r.status().is_success())
+        assert!(r.status().is_success());
+
+        let _json: QueryResponse = r.json().await.unwrap();
     }
+
     #[tokio::test]
-    async fn test_allpages() {
-        let params: PARAMS<Query> = get_pages_sync_params().unwrap();
+    async fn test_category_members() {
+        let params: PARAMS<Query> = get_category_members_sync_params(363_u32).unwrap();
 
-        let r: Response = Client::new().get(BASE).query(&params).send().await.unwrap();
+        let r = Client::new().get(BASE).query(&params).send().await.unwrap();
+        assert!(r.status().is_success());
 
-        assert!(r.status().is_success())
+        let _json: QueryResponse = r.json().await.unwrap();
     }
 }

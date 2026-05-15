@@ -1,4 +1,7 @@
-pub mod connection;
 pub mod fetch;
 mod rows;
-pub use rows::{CategoriesRow, ImageCategoryRow, ImagesRow, SubCategoryRow};
+pub mod write;
+pub use rows::{
+    CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow, into_categories_row,
+    into_images_row,
+};

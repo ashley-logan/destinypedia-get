@@ -1,5 +1,4 @@
 use crate::models::deserialize::de_helpers::*;
-use crate::models::deserialize::prop_results::*;
 use crate::models::deserialize::query::*;
 use serde::de::Deserialize;
 use std::collections::HashMap;
@@ -19,14 +18,13 @@ impl<'de> Deserialize<'de> for QueryResponse {
 
         Ok(QueryResponse {
             pageids: helper.query.pageids,
-            results: helper.query.pages.into_values().collect(),
+            results: helper
+                .query
+                .pages
+                .into_values()
+                .filter_map(|iq| QueryResult::from_helper(iq))
+                .collect(),
         })
-    }
-}
-
-impl QueryResponse {
-    pub fn get_results(&self) -> &[QueryResult] {
-        self.results.as_slice()
     }
 }
 

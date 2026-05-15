@@ -24,7 +24,7 @@ pub(crate) struct QueryResultHelper {
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct IndiscriminateQueryHelper {
     pub(crate) pageids: Option<Vec<u32>>,
-    pub(crate) pages: HashMap<String, QueryResult>,
+    pub(crate) pages: HashMap<String, QueryResultHelper>,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
