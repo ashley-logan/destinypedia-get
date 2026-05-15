@@ -3,7 +3,7 @@ mod database;
 pub mod get;
 mod models;
 mod prebuilt;
-mod sync;
+pub mod sync;
 pub use cli::CLI;
 pub use database::Row;
 pub use models::deserialize;

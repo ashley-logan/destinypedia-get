@@ -12,7 +12,7 @@ use std::path;
 
 const USER_AGENT: &'static str = "DESTINY_FETCHER";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
-const CATEGORY_IMAGES_ID: u32 = 363;
+const CATEGORY_IMAGES_ID: u32 = 364;
 
 pub async fn sync(mut data_dir: path::PathBuf) -> Result<()> {
     data_dir.push(path::Path::new("destiny-fetch.db"));
@@ -56,13 +56,10 @@ pub async fn sync(mut data_dir: path::PathBuf) -> Result<()> {
 /// consumer sends Row(s) into row channel
 /// writer recieves rows and prepares an insert statement
 /// once batch size is reached (or on final flush) writer bulk writes to the db
-pub(crate) async fn cm_request_worker(
-    recv: Receiver<u32>,
-    send: Sender<(u32, Vec<u8>)>,
-) -> Result<()> {
+pub async fn cm_request_worker(recv: Receiver<u32>, send: Sender<(u32, Vec<u8>)>) -> Result<()> {
     let client: Client = Client::builder().user_agent(USER_AGENT).build()?;
 
-    while let Ok(id) = recv.recv() {
+    for id in recv.recv().into_iter() {
         let mut params: PARAMS<Query> = get::get_category_members_sync_params(id.clone())?;
         let mut more_results: bool = true;
 
@@ -85,6 +82,7 @@ pub(crate) async fn cm_request_worker(
             send.send((id, b)).unwrap(); // send owned bytes into producer-consumer channel
         }
     }
+    drop(send);
 
     Ok(())
 }
@@ -151,6 +149,7 @@ pub(crate) async fn cm_response_worker(
                 _ => panic!("result sent to cm_response_worker was neither a file nor a category"),
             });
         })
-        .await;
+        .await
+        .unwrap();
     }
 }
