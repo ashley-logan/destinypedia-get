@@ -1,83 +1,81 @@
 {
-    {
-        "pageid": 364,
-        "ns": 14,
-        "title": "Category:Images",
-        "children": [
-            {
-                "pageid": 363,
-                "ns": 14,
-                "title": "Category:Images by copyright status",
-                "children": [
-                    {
-                        "pageid": 410,
-                        "ns": 14,
-                        "title": "Category:Copyrighted free use images"
-                    },
-                    {
-                        "pageid": 366,
-                        "ns": 14,
-                        "title": "Category:Fair use images"
-                    },
-                    {
-                        "pageid": 400,
-                        "ns": 14,
-                        "title": "Category:GFDL images"
-                    },
-                    {
-                        "pageid": 412,
-                        "ns": 14,
-                        "title": "Category:Images used with permission"
-                    },
-                    {
-                        "pageid": 403,
-                        "ns": 14,
-                        "title": "Category:Images with unknown copyright status"
-                    },
-                    {
-                        "pageid": 406,
-                        "ns": 14,
-                        "title": "Category:Public domain images"
-                    }
-                ]
-            },
-            {
-                "pageid": 369,
-                "ns": 14,
-                "title": "Category:Images by source",
-                "children": [
-                    {
-                        "pageid": 368,
-                        "ns": 14,
-                        "title": "Category:Images with unknown source"
-                    },
-                    {
-                        "pageid": 391,
-                        "ns": 14,
-                        "title": "Category:Comic images"
-                    },
-                    {
-                        "pageid": 385,
-                        "ns": 14,
-                        "title": "Category:Images of action figures"
-                    }
-                ]
-            },
-            {
-                "pageid": 31716,
-                "ns": 14,
-                "title": "Category:Images by subject"
-            },
-            {
-                "pageid": 375,
-                "ns": 14,
-                "title": "Category:Images by type"
-            },
-            {
-                "pageid": 510,
-                "ns": 14,
-                "title": "Category:Personal images"
-            }
-        ]
-    }
+    "pageid": 364,
+    "ns": 14,
+    "title": "Category:Images",
+    "children": [
+        {
+            "pageid": 363,
+            "ns": 14,
+            "title": "Category:Images by copyright status",
+            "children": [
+                {
+                    "pageid": 410,
+                    "ns": 14,
+                    "title": "Category:Copyrighted free use images"
+                },
+                {
+                    "pageid": 366,
+                    "ns": 14,
+                    "title": "Category:Fair use images"
+                },
+                {
+                    "pageid": 400,
+                    "ns": 14,
+                    "title": "Category:GFDL images"
+                },
+                {
+                    "pageid": 412,
+                    "ns": 14,
+                    "title": "Category:Images used with permission"
+                },
+                {
+                    "pageid": 403,
+                    "ns": 14,
+                    "title": "Category:Images with unknown copyright status"
+                },
+                {
+                    "pageid": 406,
+                    "ns": 14,
+                    "title": "Category:Public domain images"
+                }
+            ]
+        },
+        {
+            "pageid": 369,
+            "ns": 14,
+            "title": "Category:Images by source",
+            "children": [
+                {
+                    "pageid": 368,
+                    "ns": 14,
+                    "title": "Category:Images with unknown source"
+                },
+                {
+                    "pageid": 391,
+                    "ns": 14,
+                    "title": "Category:Comic images"
+                },
+                {
+                    "pageid": 385,
+                    "ns": 14,
+                    "title": "Category:Images of action figures"
+                }
+            ]
+        },
+        {
+            "pageid": 31716,
+            "ns": 14,
+            "title": "Category:Images by subject"
+        },
+        {
+            "pageid": 375,
+            "ns": 14,
+            "title": "Category:Images by type"
+        },
+        {
+            "pageid": 510,
+            "ns": 14,
+            "title": "Category:Personal images"
+        }
+    ]
 }
