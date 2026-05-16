@@ -111,12 +111,13 @@ pub(crate) async fn cm_response_worker(
     send_write: Sender<Row>,
 ) {
     use rayon::prelude::*;
+    let mut continue_recv: bool;
     while let Ok((id, bytes)) = recv.recv() {
+        continue_recv = false;
         let send_id: Sender<u32> = send.clone();
         let send_row: Sender<Row> = send_write.clone();
-        tokio::task::spawn_blocking(move || {
+         let handle = tokio::task::spawn_blocking(move || {
             let resp: QueryResponse = from_slice(&bytes[..]).unwrap();
-
             resp.results.into_par_iter().for_each(|qr| match qr.ns {
                 NAMESPACE::CATEGORY => {
                     send_id.send(qr.pageid.clone()).unwrap();

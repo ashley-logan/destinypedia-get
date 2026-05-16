@@ -11,15 +11,24 @@ mod tests {
         let now = tokio::time::Instant::now();
         let (send, recv) = unbounded::<u32>();
         let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let h = tokio::spawn(cm_request_worker(recv, send2));
 
-        for (id, _bytes) in recv2.recv().iter() {
-            dbg!(format!("fetched page {}", id));
+        for id in ROOT_MEMBERS {
+            send.send(id).unwrap();
         }
 
+        drop(send);
+        h.await.unwrap();
+
+        for (id, _bytes) in recv2.recv().iter() {
+            eprintln!("fetched page {}", id);
+        }
+
+
         let el = now.elapsed();
-        dbg!(format!(
+        eprintln!(
             "request worker took {} seconds to run",
             el.as_secs_f64()
-        ));
+        );
     }
 }
