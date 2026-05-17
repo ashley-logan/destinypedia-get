@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crossbeam_channel::{Receiver, Sender, unbounded};
+    use destiny_fetch::Result;
     use destiny_fetch::sync::cm_request_worker;
     const ROOT_ID: u32 = 364;
     const ROOT_SUBCATS: u16 = 5;
@@ -18,17 +19,60 @@ mod tests {
         }
 
         drop(send);
-        h.await.unwrap();
+        h.await.unwrap().unwrap();
 
-        for (id, _bytes) in recv2.recv().iter() {
-            eprintln!("fetched page {}", id);
+        while let Ok((id, _bytes)) = recv2.recv() {
+            dbg!(format!("fetched page #{}", id));
         }
 
-
         let el = now.elapsed();
-        eprintln!(
+        dbg!(format!(
             "request worker took {} seconds to run",
             el.as_secs_f64()
-        );
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_empty_request_worker() {
+        let (send, recv) = unbounded::<u32>();
+        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let h = tokio::spawn(cm_request_worker(recv, send2));
+
+        drop(send);
+
+        h.await.unwrap().unwrap();
+
+        while let Ok((id, _bytes)) = recv2.recv() {
+            dbg!(format!("fetched page #{}", id));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_high_traffic_req_worker() {
+        let (send, recv) = unbounded::<u32>();
+        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        (0..500_u32).for_each(|id| {
+            send.send(id).unwrap();
+        });
+        let mut jset: tokio::task::JoinSet<Result<()>> = tokio::task::JoinSet::new();
+
+        for _ in 0..10 {
+            let (recv_copy, send_copy) = (recv.clone(), send2.clone());
+            jset.spawn(cm_request_worker(recv_copy, send_copy));
+        }
+
+        drop(send);
+        drop(recv);
+        drop(send2);
+
+        let r = jset.join_all().await;
+
+        while let Ok((id, _bytes)) = recv2.recv() {
+            if id % 100 == 0 {
+                dbg!(format!("fetched page {}", id));
+            }
+        }
+
+        assert!(r.iter().all(|r| r.is_ok()))
     }
 }

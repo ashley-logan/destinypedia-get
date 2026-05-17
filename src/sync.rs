@@ -9,6 +9,11 @@ use reqwest::{Client, Response};
 use rusqlite::Connection;
 use serde_json::from_slice;
 use std::path;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, AtomicU32, Ordering},
+};
+use tokio::task;
 
 const USER_AGENT: &'static str = "DESTINY_FETCHER";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
@@ -59,7 +64,7 @@ pub async fn sync(mut data_dir: path::PathBuf) -> Result<()> {
 pub async fn cm_request_worker(recv: Receiver<u32>, send: Sender<(u32, Vec<u8>)>) -> Result<()> {
     let client: Client = Client::builder().user_agent(USER_AGENT).build()?;
 
-    for id in recv.recv().into_iter() {
+    while let Ok(id) = recv.recv() {
         let mut params: PARAMS<Query> = get::get_category_members_sync_params(id.clone())?;
         let mut more_results: bool = true;
 
@@ -111,15 +116,18 @@ pub(crate) async fn cm_response_worker(
     send_write: Sender<Row>,
 ) {
     use rayon::prelude::*;
-    let mut continue_recv: bool;
+    let child_categories: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let mut handle: task::JoinSet<()> = tokio::task::JoinSet::new();
     while let Ok((id, bytes)) = recv.recv() {
-        continue_recv = false;
+        child_categories.store(false, Ordering::Relaxed);
         let send_id: Sender<u32> = send.clone();
         let send_row: Sender<Row> = send_write.clone();
-         let handle = tokio::task::spawn_blocking(move || {
+        let has_categories: Arc<AtomicBool> = child_categories.clone();
+        handle.spawn_blocking(move || {
             let resp: QueryResponse = from_slice(&bytes[..]).unwrap();
             resp.results.into_par_iter().for_each(|qr| match qr.ns {
                 NAMESPACE::CATEGORY => {
+                    has_categories.store(true, Ordering::Relaxed);
                     send_id.send(qr.pageid.clone()).unwrap();
                     send_row
                         .send(Row::SubCategory(SubCategoryRow {
@@ -149,8 +157,13 @@ pub(crate) async fn cm_response_worker(
                 }
                 _ => panic!("result sent to cm_response_worker was neither a file nor a category"),
             });
-        })
-        .await
-        .unwrap();
+        });
+        if child_categories.load(Ordering::Relaxed) == false {
+            drop(recv);
+            drop(send);
+            drop(send_write);
+            break;
+        }
     }
+    handle.join_all().await;
 }

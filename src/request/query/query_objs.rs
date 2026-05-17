@@ -1,13 +1,19 @@
-use super::ser_types::{ContinueStruct, Limit, ListString};
-use super::{NAMESPACE, Prop};
+use crate::NAMESPACE;
+use crate::request::helpers::{ContinueStruct, ListString};
 use derive_more::Display;
 use serde::Serialize;
-use serde_with;
 use serde_with_macros::{serde_as, skip_serializing_none};
+
+/// This trait describes an mediaWiki Api 'action' (e.g. query, parse, opensearch)
+/// The type implemnting this trait contains all action-specific parameters for that action
+/// The trait extends Default and serde::Serialize
+pub trait Action: Default + Serialize {}
+
+impl Action for Query {}
 
 #[serde_as]
 #[skip_serializing_none]
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Default)]
+#[derive(Debug, Serialize, Default)]
 #[serde(tag = "action", rename_all = "lowercase", rename = "query")]
 pub struct Query {
     #[serde_as(as = "Option<ListString>")]
@@ -25,9 +31,51 @@ pub struct Query {
     pub cont: Option<(String, String)>,
 }
 
+#[derive(Debug, Display)]
+#[display(rename_all = "lowercase")]
+enum ImageInfoProp {
+    Timestamp,
+    User,
+    Userid,
+    Comment,
+    Parsedcomment,
+    Canonicaltitle,
+    Url,
+    Size,
+    Dimensions,
+    SHA1,
+    Mime,
+    Mediatype,
+    Metadata,
+    Commonmetadata,
+    Extmetadata,
+}
+
+#[derive(Debug, Display)]
+#[display(rename_all = "lowercase")]
+pub enum Prop {
+    Info,
+    PageImages,
+    Images,
+    ImageInfo,
+    Categories,
+    CategoryInfo,
+}
+
+#[derive(Debug, Display)]
+#[display(rename_all = "lowercase")]
+enum CategoryProp {
+    Ids,
+    Title,
+    Sortkey,
+    Sortkeyprefix,
+    Type,
+    Timestamp,
+}
+
 #[serde_as]
 #[skip_serializing_none]
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq)]
+#[derive(Debug, Serialize)]
 #[serde(tag = "generator", rename_all = "lowercase")]
 pub enum Generator {
     AllImages {
@@ -54,11 +102,40 @@ pub enum Generator {
     },
     Random,
 }
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Clone)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum GcmIdentifier {
     GcmTitle(String),
     GcmPageid(u32),
+}
+
+/// Enum that represents a value of any limit parameter
+/// Per mediaWiki Api, can be either a number between [0, 500] or "max"
+/// Any number larger than 500 will be serialized as "max"
+/// Defaults to 50
+#[derive(Debug, Copy, Clone)]
+pub enum Limit {
+    Num(u16),
+    Max,
+}
+
+impl Serialize for Limit {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Limit::Max => serializer.serialize_str("max"),
+            Limit::Num(n) if *n <= 500 => serializer.serialize_str((*n).to_string().as_str()),
+            _ => serializer.serialize_str("max"),
+        }
+    }
+}
+
+impl Default for Limit {
+    fn default() -> Self {
+        Limit::Num(20_u16)
+    }
 }
 
 impl Generator {
@@ -112,6 +189,34 @@ mod tests {
     use serde_test::{Token, assert_ser_tokens};
 
     #[test]
+    fn test_query_success() {
+        let q = Query {
+            titles: Some(vec!["simpleTitle".into(), "anotherOne".into()]),
+            pageids: None,
+            prop: Some(vec![Prop::Info, Prop::CategoryInfo, Prop::ImageInfo]),
+            generator: None,
+            indexpageids: false,
+            cont: None,
+        };
+
+        assert_ser_tokens(
+            &q,
+            &[
+                Token::Map { len: None },
+                Token::Str("action"),
+                Token::Str("query"),
+                Token::Str("titles"),
+                Token::Some,
+                Token::Str("simpleTitle|anotherOne"),
+                Token::Str("prop"),
+                Token::Some,
+                Token::Str("info|categoryinfo|imageinfo"),
+                Token::MapEnd,
+            ],
+        );
+    }
+
+    #[test]
     fn test_generator_success() {
         let g = Generator::CategoryMembers {
             identifier: GcmIdentifier::GcmTitle("Category:Test".into()),
@@ -155,66 +260,4 @@ mod tests {
             ],
         );
     }
-
-    #[test]
-    fn test_query_success() {
-        let q = Query {
-            titles: Some(vec!["simpleTitle".into(), "anotherOne".into()]),
-            pageids: None,
-            prop: Some(vec![Prop::Info, Prop::CategoryInfo, Prop::ImageInfo]),
-            generator: None,
-            indexpageids: false,
-            cont: None,
-        };
-
-        assert_ser_tokens(
-            &q,
-            &[
-                Token::Map { len: None },
-                Token::Str("action"),
-                Token::Str("query"),
-                Token::Str("titles"),
-                Token::Some,
-                Token::Str("simpleTitle|anotherOne"),
-                Token::Str("prop"),
-                Token::Some,
-                Token::Str("info|categoryinfo|imageinfo"),
-                Token::MapEnd,
-            ],
-        );
-    }
-
-    // use linked_hash_map::LinkedHashMap;
-    // use serde_test::{Token, assert_tokens};
-
-    // #[test]
-    // fn test_ser_de_empty() {
-    //     let map = LinkedHashMap::<char, u32>::new();
-
-    //     assert_tokens(&map, &[
-    //         Token::Map { len: Some(0) },
-    //         Token::MapEnd,
-    //     ]);
-    // }
-
-    // #[test]
-    // fn test_ser_de() {
-    //     let mut map = LinkedHashMap::new();
-    //     map.insert('b', 20);
-    //     map.insert('a', 10);
-    //     map.insert('c', 30);
-
-    //     assert_tokens(&map, &[
-    //         Token::Map { len: Some(3) },
-    //         Token::Char('b'),
-    //         Token::I32(20),
-
-    //         Token::Char('a'),
-    //         Token::I32(10),
-
-    //         Token::Char('c'),
-    //         Token::I32(30),
-    //         Token::MapEnd,
-    //     ]);
-    // }
 }

@@ -1,26 +1,30 @@
-use super::Prop;
-use super::query::{Generator, Query};
-use super::ser_types::Action;
-use crate::{Error, Result};
+use super::query_objs::Action;
+use super::{Generator, Prop, Query};
+// use crate::{Error, Result};
 use derive_more::Display;
 use serde::Serialize;
 use serde_json::{Map, Value};
 use serde_with::{DisplayFromStr, serde_as};
 use std::marker::PhantomData;
 
-#[derive(Debug, derive_more::PartialEq, derive_more::Eq, Display, Default)]
-#[display(rename_all = "lowercase")]
-pub enum ErrorFormat {
-    PlainText,
-    WikiText,
-    HTML,
-    #[default]
-    Raw,
-    None,
-    BC,
+pub struct ParamsBuilder<T: Action> {
+    params: T,
+    format: Option<Format>,
+    extra: Option<Map<String, Value>>,
 }
 
-#[derive(Debug, derive_more::PartialEq, derive_more::Eq, Display, Default)]
+#[serde_as]
+#[derive(Debug, Serialize, Default)]
+pub struct PARAMS<T: Action> {
+    #[serde(flatten)]
+    params: serde_json::Value,
+    #[serde_as(as = "DisplayFromStr")]
+    format: Format,
+    #[serde(skip)]
+    action_marker: PhantomData<T>,
+}
+
+#[derive(Debug, Display, Default)]
 #[display(rename_all = "lowercase")]
 pub enum Format {
     #[default]
@@ -34,21 +38,16 @@ pub enum Format {
     XmlFm,
 }
 
-pub struct ParamsBuilder<T: Action> {
-    params: T,
-    format: Option<Format>,
-    extra: Option<Map<String, Value>>,
-}
-
-#[serde_as]
-#[derive(Debug, Serialize, derive_more::PartialEq, derive_more::Eq, Default)]
-pub struct PARAMS<T: Action> {
-    #[serde(flatten)]
-    params: serde_json::Value,
-    #[serde_as(as = "DisplayFromStr")]
-    format: Format,
-    #[serde(skip)]
-    action_marker: PhantomData<T>,
+#[derive(Debug, Display, Default)]
+#[display(rename_all = "lowercase")]
+pub enum ErrorFormat {
+    PlainText,
+    WikiText,
+    HTML,
+    #[default]
+    Raw,
+    None,
+    BC,
 }
 
 impl<T: Action> PARAMS<T> {

@@ -5,9 +5,8 @@
 "imageinfo":[{"url":"https://destiny.wiki.gallery/images/9/96/Dire_Taken_Concept_1.jpg","descriptionurl":"https://www.destinypedia.com/File:Dire_Taken_Concept_1.jpg","descriptionshorturl":"https://www.destinypedia.com/index.php?curid=50985"}]}}}}
 */
 
-use crate::{
-    GcmIdentifier, Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, Result, models::NAMESPACE,
-};
+use crate::NAMESPACE;
+use crate::request::{GcmIdentifier, Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, Result};
 
 pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()

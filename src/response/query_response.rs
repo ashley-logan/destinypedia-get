@@ -1,9 +1,9 @@
-use crate::models::deserialize::de_helpers::*;
-use crate::models::deserialize::query::*;
+use crate::NAMESPACE;
+use crate::response::{de_helpers::*, items::*};
 use serde::de::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Debug, derive_more::PartialEq, derive_more::Eq)]
+#[derive(Debug)]
 pub struct QueryResponse {
     pub pageids: Option<Vec<u32>>,
     pub results: Vec<QueryResult>,
@@ -17,14 +17,81 @@ impl<'de> Deserialize<'de> for QueryResponse {
         let helper: QueryResponseHelper = QueryResponseHelper::deserialize(deserializer)?;
 
         Ok(QueryResponse {
-            pageids: helper.query.pageids,
+            pageids: helper
+                .query
+                .pageids
+                .map(|ids| ids.into_iter().filter_map(TryInto::<u32>::try_into))
+                .collect(), // only collect valid pageids (id >= 0)
             results: helper
                 .query
                 .pages
                 .into_values()
-                .filter_map(|iq| QueryResult::from_helper(iq))
-                .collect(),
+                .filter_map(QueryResult::from_helper)
+                .collect(), // only collect valid results, see QueryResult::from_helper for details
         })
+    }
+}
+
+#[derive(Debug)]
+pub struct QueryResult {
+    pub pageid: u32,
+    pub ns: NAMESPACE,
+    pub title: String,
+    pub categories: Option<CategoriesProp>,
+    pub categoryinfo: Option<CategoryInfoProp>,
+    pub images: Option<ImagesProp>,
+    pub imageinfo: Option<ImageInfoProp>,
+    pub pageimages: Option<PageImagesProp>,
+    pub info: Option<InfoProp>,
+}
+
+impl QueryResult {
+    pub(crate) fn from_helper(helper: QueryResultHelper) -> Option<Self> {
+        match helper {
+            QueryResultHelper {
+                pageid: Some(pageid_),
+                ns: Some(ns_),
+                title: Some(title_),
+                categories: Some(categories_),
+                categoryinfo: Some(categoryinfo_),
+                images: Some(images_),
+                imageinfo: Some(imageinfo_),
+                pageimages: Some(pageimages_),
+                info: Some(info_),
+            } => Some(QueryResult {
+                pageid: pageid_.try_into()?, // result is invalid if pageid < 0
+                ns: ns_.try_into()?, // result is invalid if ns (namespace) does not map to a valid namespace (see crate::NAMESPACE)
+                title: title_,
+
+                // empty property fields (determined by PropResult::empty) are deserialized as None
+                //
+                categories: if categories_.empty() {
+                    None
+                } else {
+                    Some(categories_)
+                },
+                categoryinfo: if categoryinfo_.empty() {
+                    None
+                } else {
+                    Some(categoryinfo_)
+                },
+                images: if images_.empty() { None } else { Some(images_) },
+                imageinfo: if imageinfo_.empty() {
+                    None
+                } else {
+                    Some(imageinfo_)
+                },
+                pageimages: if pageimages_.empty() {
+                    None
+                } else {
+                    Some(pageimages_)
+                },
+                info: if info_.empty() { None } else { Some(info_) },
+                //
+                // end property fields check
+            }),
+            _ => None,
+        }
     }
 }
 
