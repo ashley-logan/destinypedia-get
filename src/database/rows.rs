@@ -1,8 +1,6 @@
-use crate::models::NAMESPACE;
-use crate::models::deserialize::QueryResult;
-use crate::models::deserialize::items::*;
-use crate::models::deserialize::{
-    CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, InfoProp, PageImagesProp,
+use crate::NAMESPACE;
+use crate::response::{
+    CategoriesProp, CategoryInfoProp, ImageInfoProp, ImagesProp, QueryResult, items::*,
 };
 
 pub enum Row {
