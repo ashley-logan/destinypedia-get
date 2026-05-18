@@ -8,14 +8,14 @@ pub(super) struct QueryResultHelper {
     pub pageid: Option<i32>,
     pub(super) ns: Option<u16>,
     pub(super) title: Option<String>,
-    pub(super) categories: Option<CategoriesProp>,
-    pub(super) categoryinfo: Option<CategoryInfoProp>,
-    pub(super) images: Option<ImagesProp>,
-    pub(super) imageinfo: Option<ImageInfoProp>,
+    pub(super) categories: Option<Categories>,
+    pub(super) categoryinfo: Option<CategoryInfo>,
+    pub(super) images: Option<Images>,
+    pub(super) imageinfo: Option<ImageInfo>,
     #[serde(flatten)]
-    pub(super) pageimages: Option<PageImagesProp>,
+    pub(super) pageimages: Option<PageImages>,
     #[serde(flatten)]
-    pub(super) info: Option<InfoProp>,
+    pub(super) info: Option<Info>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -26,5 +26,7 @@ pub(super) struct IndiscriminateQueryHelper {
 
 #[derive(Debug, Deserialize)]
 pub(super) struct QueryResponseHelper {
+    #[serde(rename = "continue")]
+    pub(super) continue_: Option<super::Continue>,
     pub(super) query: IndiscriminateQueryHelper,
 }

@@ -2,6 +2,7 @@ use crate::database::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCatego
 use crossbeam_channel::{Receiver, unbounded};
 use dirs;
 use rusqlite::{Batch, Connection, Transaction};
+use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
 /*
@@ -23,47 +24,81 @@ pub fn dispatch_row_writer(
     conn: &Connection,
     recv: Receiver<Row>,
     batch_size: usize,
-) -> crate::Result<()> {
-    let (mut batch_counter, mut tx_insert_count, mut total_insert_count) =
-        (0_usize, 0_usize, 0_usize);
+) -> super::error::DatabaseResult<HashMap<String, usize>> {
+    let mut counters: HashMap<String, usize> = HashMap::from_iter([
+        ("batch_count".into(), 0_usize),
+        ("insert_count".into(), 0_usize),
+        ("total_insert_count".into(), 0_usize),
+        ("subcat_count".into(), 0_usize),
+        ("imgcat_count".into(), 0_usize),
+        ("cat_count".into(), 0_usize),
+        ("img_count".into(), 0_usize),
+    ]);
+
     let mut tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
     while let Ok(row) = recv.recv() {
         let rows_inserted = match row {
-            Row::SubCategory(sc) => write_row_subcategories(conn, sc),
-            Row::ImageCategory(ic) => write_row_image_categories(conn, ic),
-            Row::Categories(c) => write_row_categories(conn, c),
-            Row::Images(i) => write_row_images(conn, i),
-        }?;
+            Row::SubCategory(sc) => {
+                let n = write_row_subcategories(conn, sc)?;
+                counters
+                    .entry("subcat_count".into())
+                    .and_modify(|i| *i += n);
+                n
+            }
+            Row::ImageCategory(ic) => {
+                let n = write_row_image_categories(conn, ic)?;
+                counters
+                    .entry("imgcat_count".into())
+                    .and_modify(|i| *i += n);
+                n
+            }
+            Row::Categories(c) => {
+                let n = write_row_categories(conn, c)?;
+                counters.entry("cat_count".into()).and_modify(|i| *i += n);
+                n
+            }
+            Row::Images(i) => {
+                let n = write_row_images(conn, i)?;
+                counters.entry("img_count".into()).and_modify(|i| *i += n);
+                n
+            }
+        };
+        counters
+            .entry("insert_count".into())
+            .and_modify(|i| *i += rows_inserted);
 
-        tx_insert_count += rows_inserted;
-
-        if tx_insert_count >= batch_size {
+        if counters["insert_count"] >= batch_size {
             tx.commit()?;
             tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
-            batch_counter += 1;
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
             dbg!(format!(
                 "BATCH #{} WRITTEN => {} ROWS INSERTED",
-                batch_counter, tx_insert_count
+                counters["batch_count"], counters["insert_count"]
             ));
-            total_insert_count += tx_insert_count;
-            tx_insert_count = 0;
+
+            *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
+            counters.insert("insert_count".into(), 0);
         }
     }
     tx.commit()?;
-    batch_counter += 1;
+    counters.entry("batch_count".into()).and_modify(|i| *i += 1);
     dbg!(format!(
         "FINAL BATCH #{} WRITTEN => {} ROWS INSERTED",
-        batch_counter, tx_insert_count
+        counters["batch_count"], counters["insert_count"]
     ));
-    total_insert_count += tx_insert_count;
+    *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
+    counters.insert("insert_count".into(), 0);
     dbg!(format!(
         "WRITER COMPLETE\n\tTOTAL ROWS INSERTED => {}\n\tTOTAL BATCHES PROCESSED => {}",
-        total_insert_count, batch_counter
+        counters["total_insert_count"], counters["batch_count"]
     ));
-    Ok(())
+    Ok(counters)
 }
 
-pub fn write_row_subcategories(conn: &Connection, row: SubCategoryRow) -> crate::Result<usize> {
+pub fn write_row_subcategories(
+    conn: &Connection,
+    row: SubCategoryRow,
+) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
         INSERT INTO SUBCATEGORIES (category_id, subcategory_id)
@@ -77,7 +112,7 @@ pub fn write_row_subcategories(conn: &Connection, row: SubCategoryRow) -> crate:
 pub fn write_row_image_categories(
     conn: &Connection,
     row: ImageCategoryRow,
-) -> crate::Result<usize> {
+) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
         INSERT INTO IMAGE_CATEGORIES (image_id, category_id)
@@ -87,7 +122,7 @@ pub fn write_row_image_categories(
         .map_err(|e| e.into())
 }
 
-pub fn write_row_images(conn: &Connection, row: ImagesRow) -> crate::Result<usize> {
+pub fn write_row_images(conn: &Connection, row: ImagesRow) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
         INSERT INTO IMAGES (id, title, url, size, width, height, timestamp)
@@ -95,14 +130,11 @@ pub fn write_row_images(conn: &Connection, row: ImagesRow) -> crate::Result<usiz
         ",
     )?;
 
-    const MIB: f64 = 1024.0 * 1024.0;
-    let mib_size: f64 = (row.size as f64) / MIB;
-
     stmt.execute((
         row.id,
         row.title,
         row.url,
-        mib_size,
+        row.size,
         row.width,
         row.height,
         row.timestamp,
@@ -110,7 +142,10 @@ pub fn write_row_images(conn: &Connection, row: ImagesRow) -> crate::Result<usiz
     .map_err(|e| e.into())
 }
 
-pub fn write_row_categories(conn: &Connection, row: CategoriesRow) -> crate::Result<usize> {
+pub fn write_row_categories(
+    conn: &Connection,
+    row: CategoriesRow,
+) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
         INSERT INTO CATEGORIES (id, title, subcats, files)
@@ -122,16 +157,16 @@ pub fn write_row_categories(conn: &Connection, row: CategoriesRow) -> crate::Res
         .map_err(|e| e.into())
 }
 
-fn create_tables(conn_path: PathBuf) {
+fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
     // let ddir: PathBuf = dirs::data_dir().expect("ERROR: Couldn't find data directory");
     // let DB_URL = format!(
     //     "sqlite://{}",
     //     ddir.join("destinypedia.db").to_string_lossy()
     // );
 
-    let mut conn = Connection::open(conn_path).unwrap();
-    conn.pragma_update(None, "journal_mode", "WAL").unwrap();
-    let tx = conn.transaction().unwrap();
+    let mut conn: Connection = Connection::open(conn_path)?;
+    conn.pragma_update(None, "journal_mode", "WAL")?;
+    let tx = conn.transaction()?;
     tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS IMAGES (
@@ -145,8 +180,7 @@ fn create_tables(conn_path: PathBuf) {
 
             )",
         (),
-    )
-    .unwrap();
+    )?;
 
     tx.execute(
         r"
@@ -158,8 +192,7 @@ fn create_tables(conn_path: PathBuf) {
 
             )",
         (),
-    )
-    .unwrap();
+    )?;
 
     tx.execute(
         r"
@@ -170,8 +203,7 @@ fn create_tables(conn_path: PathBuf) {
                 files INTEGER
             )",
         (),
-    )
-    .unwrap();
+    )?;
 
     tx.execute(
         r#"
@@ -183,10 +215,9 @@ fn create_tables(conn_path: PathBuf) {
 
             )"#,
         (),
-    )
-    .unwrap();
+    )?;
 
-    tx.commit().unwrap();
+    tx.commit().map_err(|e| e.into())
 }
 
 #[cfg(test)]

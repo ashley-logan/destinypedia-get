@@ -33,7 +33,7 @@ pub struct Query {
 
 #[derive(Debug, Display)]
 #[display(rename_all = "lowercase")]
-enum ImageInfoProp {
+enum ImageInfo {
     Timestamp,
     User,
     Userid,

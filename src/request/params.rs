@@ -1,6 +1,5 @@
 use super::query_objs::Action;
-use super::{Generator, Prop, Query};
-// use crate::{Error, Result};
+use super::{Generator, Prop, Query, error::RequestResult};
 use derive_more::Display;
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -57,9 +56,13 @@ impl<T: Action> PARAMS<T> {
 }
 
 impl PARAMS<Query> {
-    pub fn update_continue(&mut self, cont_key: String, cont_value: String) -> Option<String> {
+    pub fn update_continue(
+        &mut self,
+        cont_key: impl Into<String>,
+        cont_value: impl Into<String>,
+    ) -> Option<String> {
         if let Some(obj) = self.params.as_object_mut() {
-            obj.insert(cont_key, cont_value.into())
+            obj.insert(cont_key.into(), cont_value.into().into())
                 .map(|v| v.to_string())
         } else {
             None
@@ -85,7 +88,7 @@ impl<T: Action> ParamsBuilder<T> {
         }
     }
 
-    pub fn build(self) -> Result<PARAMS<T>> {
+    pub fn build(self) -> RequestResult<PARAMS<T>> {
         let mut val = serde_json::to_value(self.params)?;
         if let Some(obj) = val.as_object_mut() {
             if obj.contains_key("pageids") && obj.contains_key("titles") {
@@ -226,24 +229,6 @@ impl ParamsBuilder<Query> {
         self.params.indexpageids = ind;
     }
 
-    pub fn set_continue_value(&mut self, cval: impl Into<String>) -> Result<()> {
-        if let Some(tup) = &mut self.params.cont {
-            tup.1 = cval.into();
-            Ok(())
-        } else {
-            Err(Error::Params)
-        }
-    }
-
-    pub fn set_continue_key(&mut self, ckey: impl Into<String>) -> Result<()> {
-        if let Some(tup) = &mut self.params.cont {
-            tup.0 = ckey.into();
-            Ok(())
-        } else {
-            Err(Error::Params)
-        }
-    }
-
     pub fn set_continue(&mut self, ckey: impl Into<String>, cval: impl Into<String>) {
         self.params.cont = Some((ckey.into(), cval.into()));
     }
@@ -301,10 +286,8 @@ impl ParamsBuilder<Query> {
 }
 
 #[cfg(test)]
-#[allow(non_snake_case)]
 mod tests {
     use super::*;
-    use serde_json::{json, to_value};
     use serde_test::{Token, assert_ser_tokens};
 
     #[test]
@@ -340,7 +323,7 @@ mod tests {
         builder.append_props([Prop::Images, Prop::ImageInfo]);
         builder.replace_or_remove_titles(Some(["redTitle", "blueTitle"]));
         builder.set_continue("continue", "someValue");
-        builder.set_continue_value("actualValue").unwrap();
+        builder.set_continue("continue", "actualValue");
         let params: PARAMS<Query> = builder.build().unwrap();
 
         assert_ser_tokens(

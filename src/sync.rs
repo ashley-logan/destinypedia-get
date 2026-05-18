@@ -1,8 +1,10 @@
 use crate::database::{
     CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow, dispatch_row_writer,
-    into_categories_row, into_images_row,
+    error::DatabaseResult, into_categories_row, into_images_row,
 };
-use crate::{Continue, PARAMS, Query, QueryResponse, Result, get, models::NAMESPACE};
+use crate::request::{PARAMS, Query, error::RequestResult};
+use crate::response::{Continue, QueryResponse};
+use crate::{NAMESPACE, get};
 use crossbeam_channel::{Receiver, Sender, bounded};
 use dirs;
 use reqwest::{Client, Response};
@@ -19,7 +21,7 @@ const USER_AGENT: &'static str = "DESTINY_FETCHER";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
 const CATEGORY_IMAGES_ID: u32 = 364;
 
-pub async fn sync(mut data_dir: path::PathBuf) -> Result<()> {
+pub async fn sync(mut data_dir: path::PathBuf) -> DatabaseResult<()> {
     data_dir.push(path::Path::new("destiny-fetch.db"));
     let conn = Connection::open(data_dir)?;
 
@@ -61,7 +63,10 @@ pub async fn sync(mut data_dir: path::PathBuf) -> Result<()> {
 /// consumer sends Row(s) into row channel
 /// writer recieves rows and prepares an insert statement
 /// once batch size is reached (or on final flush) writer bulk writes to the db
-pub async fn cm_request_worker(recv: Receiver<u32>, send: Sender<(u32, Vec<u8>)>) -> Result<()> {
+pub async fn cm_request_worker(
+    recv: Receiver<u32>,
+    send: Sender<(u32, Vec<u8>)>,
+) -> RequestResult<()> {
     let client: Client = Client::builder().user_agent(USER_AGENT).build()?;
 
     while let Ok(id) = recv.recv() {

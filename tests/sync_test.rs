@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crossbeam_channel::{Receiver, Sender, unbounded};
-    use destiny_fetch::Result;
-    use destiny_fetch::sync::cm_request_worker;
+    use destinypedia::request::error::RequestResult;
+    use destinypedia::sync::cm_request_worker;
     const ROOT_ID: u32 = 364;
     const ROOT_SUBCATS: u16 = 5;
     const ROOT_MEMBERS: [u32; 5] = [363, 369, 31716, 375, 510];
@@ -54,7 +54,7 @@ mod tests {
         (0..500_u32).for_each(|id| {
             send.send(id).unwrap();
         });
-        let mut jset: tokio::task::JoinSet<Result<()>> = tokio::task::JoinSet::new();
+        let mut jset: tokio::task::JoinSet<RequestResult<()>> = tokio::task::JoinSet::new();
 
         for _ in 0..10 {
             let (recv_copy, send_copy) = (recv.clone(), send2.clone());

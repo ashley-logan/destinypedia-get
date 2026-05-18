@@ -6,9 +6,11 @@
 */
 
 use crate::NAMESPACE;
-use crate::request::{GcmIdentifier, Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, Result};
+use crate::request::{
+    GcmIdentifier, Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::RequestResult,
+};
 
-pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
+pub(crate) fn get_images_sync_params() -> RequestResult<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::allimages_with(None, Some(Limit::Max)))
         .with_props([Prop::ImageInfo])
@@ -18,7 +20,7 @@ pub(crate) fn get_images_sync_params() -> Result<PARAMS<Query>> {
     builder.build()
 }
 
-pub(crate) fn get_categories_sync_params() -> Result<PARAMS<Query>> {
+pub(crate) fn get_categories_sync_params() -> RequestResult<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::allcategories_with(
             None,
@@ -32,7 +34,7 @@ pub(crate) fn get_categories_sync_params() -> Result<PARAMS<Query>> {
     builder.build()
 }
 
-pub(crate) fn get_category_members_sync_params(pageid: u32) -> Result<PARAMS<Query>> {
+pub(crate) fn get_category_members_sync_params(pageid: u32) -> RequestResult<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::categorymembers_with(
             GcmIdentifier::GcmPageid(pageid),
@@ -47,7 +49,7 @@ pub(crate) fn get_category_members_sync_params(pageid: u32) -> Result<PARAMS<Que
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::QueryResponse;
+    use crate::response::QueryResponse;
     use reqwest::{Client, Response};
 
     static BASE: &str = "https://www.destinypedia.com/api.php";

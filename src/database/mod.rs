@@ -1,3 +1,4 @@
+pub mod error;
 mod rows;
 mod write;
 pub use rows::{

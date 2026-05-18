@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use destiny_fetch::CLI;
+use destinypedia::CLI;
 fn main() {
     let _cli: CLI = CLI::parse();
 }
