@@ -1,6 +1,6 @@
+pub mod bin_modules;
+use bin_modules::{cli, database, get, sync};
 use clap::Parser;
-
-use destinypedia::CLI;
 fn main() {
-    let _cli: CLI = CLI::parse();
+    let _cli: cli::CLI = cli::CLI::parse();
 }

@@ -1,4 +1,4 @@
-use crate::database::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
+use super::rows::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
 use crossbeam_channel::{Receiver, unbounded};
 use dirs;
 use rusqlite::{Batch, Connection, Transaction};

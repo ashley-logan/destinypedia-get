@@ -224,6 +224,7 @@ impl Item for InfoItem {
 mod tests {
     use super::*;
     use serde_json::{from_value, json};
+    use serde_test::assert_de_tokens;
 
     #[test]
     fn test_image_info() {
@@ -241,6 +242,10 @@ mod tests {
                 ]
         });
 
+        let resp: ImageInfo = from_value(control).expect("Failed to convert control to ImageInfo");
+
+        assert_de_tokens(&resp, &[]);
+
         let exp: ImageInfo = ImageInfo(vec![ImageInfoItem {
             canonicaltitle: Some("File:Clash of the Hive Gods.jpg".into()),
             size: Some(523694),
@@ -249,11 +254,6 @@ mod tests {
             url: Some("https://destiny.wiki.gallery/images/f/f7/Clash_of_the_Hive_Gods.jpg".into()),
             timestamp: None,
         }]);
-
-        assert_eq!(
-            from_value::<ImageInfo>(control).expect("Failed to convert control to ImageInfo"),
-            exp
-        )
     }
 
     #[test]

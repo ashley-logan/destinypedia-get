@@ -5,8 +5,8 @@
 "imageinfo":[{"url":"https://destiny.wiki.gallery/images/9/96/Dire_Taken_Concept_1.jpg","descriptionurl":"https://www.destinypedia.com/File:Dire_Taken_Concept_1.jpg","descriptionshorturl":"https://www.destinypedia.com/index.php?curid=50985"}]}}}}
 */
 
-use crate::NAMESPACE;
-use crate::request::{
+use destinypedia::NAMESPACE;
+use destinypedia::request::{
     GcmIdentifier, Generator, Limit, PARAMS, ParamsBuilder, Prop, Query, error::RequestResult,
 };
 
@@ -49,7 +49,7 @@ pub(crate) fn get_category_members_sync_params(pageid: u32) -> RequestResult<PAR
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::response::QueryResponse;
+    use destinypedia::response::QueryResponse;
     use reqwest::{Client, Response};
 
     static BASE: &str = "https://www.destinypedia.com/api.php";

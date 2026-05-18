@@ -1,5 +1,5 @@
-use crate::NAMESPACE;
-use crate::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
+use destinypedia::NAMESPACE;
+use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
 
 pub enum Row {
     Images(ImagesRow),

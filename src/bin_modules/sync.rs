@@ -1,11 +1,13 @@
-use crate::database::{
-    CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow, dispatch_row_writer,
-    error::DatabaseResult, into_categories_row, into_images_row,
+use super::database::error::DatabaseResult;
+use super::database::rows::{
+    CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow, into_categories_row,
+    into_images_row,
 };
-use crate::request::{PARAMS, Query, error::RequestResult};
-use crate::response::{Continue, QueryResponse};
-use crate::{NAMESPACE, get};
+use super::database::write::dispatch_row_writer;
 use crossbeam_channel::{Receiver, Sender, bounded};
+use destinypedia::NAMESPACE;
+use destinypedia::request::{PARAMS, Query, error::RequestResult};
+use destinypedia::response::{Continue, QueryResponse};
 use dirs;
 use reqwest::{Client, Response};
 use rusqlite::Connection;
@@ -13,7 +15,7 @@ use serde_json::from_slice;
 use std::path;
 use std::sync::{
     Arc,
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, Ordering},
 };
 use tokio::task;
 
@@ -70,7 +72,7 @@ pub async fn cm_request_worker(
     let client: Client = Client::builder().user_agent(USER_AGENT).build()?;
 
     while let Ok(id) = recv.recv() {
-        let mut params: PARAMS<Query> = get::get_category_members_sync_params(id.clone())?;
+        let mut params: PARAMS<Query> = super::get::get_category_members_sync_params(id.clone())?;
         let mut more_results: bool = true;
 
         while more_results {
@@ -171,4 +173,83 @@ pub(crate) async fn cm_response_worker(
         }
     }
     handle.join_all().await;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crossbeam_channel::{Receiver, Sender, unbounded};
+    use destinypedia::request::error::RequestResult;
+    const ROOT_ID: u32 = 364;
+    const ROOT_SUBCATS: u16 = 5;
+    const ROOT_MEMBERS: [u32; 5] = [363, 369, 31716, 375, 510];
+
+    #[tokio::test]
+    async fn test_request_worker() {
+        let now = tokio::time::Instant::now();
+        let (send, recv) = unbounded::<u32>();
+        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let h = tokio::spawn(cm_request_worker(recv, send2));
+
+        for id in ROOT_MEMBERS {
+            send.send(id).unwrap();
+        }
+
+        drop(send);
+        h.await.unwrap().unwrap();
+
+        while let Ok((id, _bytes)) = recv2.recv() {
+            dbg!(format!("fetched page #{}", id));
+        }
+
+        let el = now.elapsed();
+        dbg!(format!(
+            "request worker took {} seconds to run",
+            el.as_secs_f64()
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_empty_request_worker() {
+        let (send, recv) = unbounded::<u32>();
+        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let h = tokio::spawn(cm_request_worker(recv, send2));
+
+        drop(send);
+
+        h.await.unwrap().unwrap();
+
+        while let Ok((id, _bytes)) = recv2.recv() {
+            dbg!(format!("fetched page #{}", id));
+        }
+    }
+
+    #[tokio::test]
+    async fn test_high_traffic_req_worker() {
+        let (send, recv) = unbounded::<u32>();
+        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        (0..500_u32).for_each(|id| {
+            send.send(id).unwrap();
+        });
+        let mut jset: tokio::task::JoinSet<RequestResult<()>> = tokio::task::JoinSet::new();
+
+        for _ in 0..10 {
+            let (recv_copy, send_copy) = (recv.clone(), send2.clone());
+            jset.spawn(cm_request_worker(recv_copy, send_copy));
+        }
+
+        drop(send);
+        drop(recv);
+        drop(send2);
+
+        let r = jset.join_all().await;
+
+        while let Ok((id, _bytes)) = recv2.recv() {
+            if id % 100 == 0 {
+                dbg!(format!("fetched page {}", id));
+            }
+        }
+
+        assert!(r.iter().all(|r| r.is_ok()))
+    }
 }

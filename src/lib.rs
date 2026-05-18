@@ -1,9 +1,5 @@
-mod cli;
-mod database;
-mod get;
 pub mod request;
 pub mod response;
-mod sync;
 pub use types::{DestinypediaError, NAMESPACE, Result};
 
 mod types {
