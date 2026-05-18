@@ -76,10 +76,10 @@ impl QueryResult {
             } => Ok(QueryResult {
                 pageid: pageid_
                     .try_into()
-                    .map_err(|_| super::error::FromResultHelperError::ConvertPageid)?, // result is invalid if pageid < 0
+                    .map_err(|_| super::error::ResponseError::ConvertPageid)?, // result is invalid if pageid < 0
                 ns: ns_
                     .try_into()
-                    .map_err(|_| super::error::FromResultHelperError::ConvertNamespace)?, // result is invalid if ns (namespace) does not map to a valid namespace (see crate::NAMESPACE)
+                    .map_err(|_| super::error::ResponseError::ConvertNamespace)?, // result is invalid if ns (namespace) does not map to a valid namespace (see crate::NAMESPACE)
                 title: title_,
 
                 // empty property fields (determined by PropResult::empty) are deserialized as None
@@ -111,7 +111,7 @@ impl QueryResult {
                 //
                 // end property fields check
             }),
-            _ => Err(super::error::FromResultHelperError::MissingField),
+            _ => Err(super::error::ResponseError::MissingField),
         }
     }
 }
