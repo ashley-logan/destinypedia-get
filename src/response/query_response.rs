@@ -72,9 +72,7 @@ impl TryFrom<QueryResultHelper> for QueryResult {
                 pageid: pageid_
                     .try_into()
                     .map_err(|_| super::error::ResponseError::ConvertPageid)?, // result is invalid if pageid < 0
-                ns: ns_
-                    .try_into()
-                    .map_err(|_| super::error::ResponseError::ConvertNamespace)?, // result is invalid if ns (namespace) does not map to a valid namespace (see crate::NAMESPACE)
+                ns: ns_,
                 title: title_,
 
                 // empty property fields (determined by PropResult::empty) are deserialized as None
@@ -172,76 +170,8 @@ mod tests {
 
         let mut resp: QueryResponse = from_reader(rdr).unwrap();
         dbg!(&resp);
-        resp.results.drain(1..);
 
-        // assert_de_tokens(
-        //     &resp,
-        //     &[
-        //         Token::Struct {
-        //             name: "QueryResponse",
-        //             len: 3,
-        //         },
-        //         Token::Str("continue_"),
-        //         Token::Some,
-        //         Token::Struct {
-        //             name: "Continue",
-        //             len: 1,
-        //         },
-        //         Token::Str("cont"),
-        //         Token::Str("||imageinfo"),
-        //         Token::Str("clcontinue"),
-        //         Token::Str("40158|Weapon_screenshots"),
-        //         Token::StructEnd,
-        //         Token::Str("pageids"),
-        //         Token::None,
-        //         Token::Str("results"),
-        //         Token::Seq { len: Some(1) },
-        //         Token::Struct {
-        //             name: "QueryResult",
-        //             len: 9,
-        //         },
-        //         Token::Str("pageid"),
-        //         Token::U32(44354),
-        //         Token::Str("ns"),
-        //         Token::UnitVariant {
-        //             name: "NAMESPACE",
-        //             variant: "FILE",
-        //         },
-        //         Token::Str("title"),
-        //         Token::Str("File:\'Act on Instinct\'.png"),
-        //         Token::Str("categories"),
-        //         Token::None,
-        //         Token::Str("categoryinfo"),
-        //         Token::None,
-        //         Token::Str("images"),
-        //         Token::None,
-        //         Token::Str("imageinfo"),
-        //         Token::Some,
-        //         Token::Seq { len: Some(1) },
-        //         Token::Struct {
-        //             name: "ImageInfoItem",
-        //             len: 6,
-        //         },
-        //         Token::Str("canonicaltitle"),
-        //         Token::None,
-        //         Token::Str("size"),
-        //         Token::None,
-        //         Token::Str("width"),
-        //         Token::None,
-        //         Token::Str("height"),
-        //         Token::None,
-        //         Token::Str("url"),
-        //         Token::None,
-        //         Token::Str("timestamp"),
-        //         Token::Some,
-        //         Token::Str("2024-07-02T13:45:06Z"),
-        //         Token::StructEnd,
-        //         Token::SeqEnd,
-        //         Token::StructEnd,
-        //         Token::SeqEnd,
-        //         Token::StructEnd,
-        //     ],
-        // );
+        
     }
 
     #[test]

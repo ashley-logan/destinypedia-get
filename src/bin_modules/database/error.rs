@@ -7,4 +7,5 @@ pub enum DatabaseError {
     IntoRowConvertError,
 }
 
-pub type DatabaseResult<T> = rusqlite::Result<T, DatabaseError>;
+pub type DatabaseResult<T> = std::result::Result<T, DatabaseError>;
+

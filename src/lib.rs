@@ -30,9 +30,9 @@ mod types {
         Ord,
         Clone,
         Copy,
-        derive_more::TryFrom,
     )]
-    #[try_from(repr)] // u16.try_into() --> Result<NAMESPACE>
+    #[serde(from = "u16")]
+    // #[try_from(repr)] // u16.try_into() --> Result<NAMESPACE>
     pub enum NAMESPACE {
         PAGE = 0,
         TALK = 1,
@@ -49,7 +49,8 @@ mod types {
         HELPTALK = 13,
         CATEGORY = 14,
         GRIMOIRE = 100,
-        FORUM = 110,
+        FORUM = 110, 
+        UNKNOWN
     }
 
     impl Into<String> for NAMESPACE {
@@ -57,6 +58,31 @@ mod types {
             (self as u16).to_string()
         }
     }
+
+    impl From<u16> for NAMESPACE {
+        fn from(value: u16) -> Self {
+            match value {
+                0 => Self::PAGE,
+                1 => Self::TALK,
+                2 => Self::USER,
+                3 => Self::USERTALK,
+                4 => Self::DESTINYPEDIA,
+                5 => Self::DESTINYPEDIATALK,
+                6 => Self::FILE,
+                7 => Self::FILETALK,
+                8 => Self::MEDIAWIKI,
+                10 => Self::TEMPLATE,
+                11 => Self::TEMPLATETALK,
+                12 => Self::HELP,
+                13 => Self::HELPTALK,
+                14 => Self::CATEGORY,
+                100 => Self::GRIMOIRE,
+                110 => Self::FORUM,
+                _ => Self::UNKNOWN
+            }
+        }
+    }
+
 
     impl Into<u16> for NAMESPACE {
         fn into(self) -> u16 {

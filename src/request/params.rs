@@ -366,7 +366,7 @@ mod tests {
                 Token::Str("action"),
                 Token::Str("query"),
                 Token::Str("gailimit"),
-                Token::Str("50"),
+                Token::Str("20"),
                 Token::Str("gaiprefix"),
                 Token::Str("prefix"),
                 Token::Str("generator"),

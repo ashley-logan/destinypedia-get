@@ -26,7 +26,7 @@ impl PropResults for Categories {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
 pub struct CategoryItem {
-    pub ns: u32,
+    pub ns: crate::NAMESPACE,
     pub title: String,
 }
 
@@ -37,13 +37,12 @@ impl Item for CategoryItem {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq)]
-#[serde(transparent)]
-pub struct CategoryInfo(pub CatgeoryInfoItem);
+pub struct CategoryInfo(pub CategoryInfoItem);
 
 impl PropResults for CategoryInfo {
-    type ItemType = CatgeoryInfoItem;
+    type ItemType = CategoryInfoItem;
     fn empty(&self) -> bool {
-        CatgeoryInfoItem::is_empty(&self.0)
+        CategoryInfoItem::is_empty(&self.0)
     }
 
     fn into_items(self) -> Vec<Self::ItemType> {
@@ -52,14 +51,14 @@ impl PropResults for CategoryInfo {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Clone)]
-pub struct CatgeoryInfoItem {
+pub struct CategoryInfoItem {
     pub size: Option<u32>,
     pub pages: Option<u32>,
     pub files: Option<u32>,
     pub subcats: Option<u32>,
 }
 
-impl Item for CatgeoryInfoItem {
+impl Item for CategoryInfoItem {
     fn is_empty(&self) -> bool {
         if self.size.is_some() {
             false
@@ -224,12 +223,12 @@ impl Item for InfoItem {
 mod tests {
     use super::*;
     use serde_json::{from_value, json};
-    use serde_test::assert_de_tokens;
+    use serde_test::{assert_de_tokens, Token};
 
     #[test]
     fn test_image_info() {
-        let control = json!({
-            "imageinfo": [
+    
+        let json = json!([
                     {
                         "size": 523694,
                         "width": 3840,
@@ -239,51 +238,90 @@ mod tests {
                         "descriptionurl": "https://www.destinypedia.com/File:Clash_of_the_Hive_Gods.jpg",
                         "descriptionshorturl": "https://www.destinypedia.com/index.php?curid=39300"
                     }
-                ]
-        });
+                ]);
 
-        let resp: ImageInfo = from_value(control).expect("Failed to convert control to ImageInfo");
+        let resp: ImageInfo = from_value(json).expect("failed to convert json into ImageInfo");
 
-        assert_de_tokens(&resp, &[]);
+        // let exp: ImageInfo = ImageInfo(vec![ImageInfoItem {
+        //     canonicaltitle: Some("File:Clash of the Hive Gods.jpg".into()),
+        //     size: Some(523694),
+        //     width: Some(3840),
+        //     height: Some(2160),
+        //     url: Some("https://destiny.wiki.gallery/images/f/f7/Clash_of_the_Hive_Gods.jpg".into()),
+        //     timestamp: None,
+        // }]);
 
-        let exp: ImageInfo = ImageInfo(vec![ImageInfoItem {
-            canonicaltitle: Some("File:Clash of the Hive Gods.jpg".into()),
-            size: Some(523694),
-            width: Some(3840),
-            height: Some(2160),
-            url: Some("https://destiny.wiki.gallery/images/f/f7/Clash_of_the_Hive_Gods.jpg".into()),
-            timestamp: None,
-        }]);
+        assert_de_tokens(&resp, &[
+            Token::Seq { len: Some(1) },
+            Token::Struct { name: "ImageInfoItem", len: 6 },
+            Token::Str("canonicaltitle"),
+            Token::Some,
+            Token::Str("File:Clash of the Hive Gods.jpg"),
+            Token::Str("size"),
+            Token::Some,
+            Token::U32(523694),
+            Token::Str("width"),
+            Token::Some,
+            Token::U32(3840),
+            Token::Str("height"),
+            Token::Some,
+            Token::U32(2160),
+            Token::Str("url"),
+            Token::Some,
+            Token::Str("https://destiny.wiki.gallery/images/f/f7/Clash_of_the_Hive_Gods.jpg"),
+            Token::Str("timestamp"),
+            Token::None,
+            Token::StructEnd,
+            Token::SeqEnd,
+        ]);
+
+        
     }
 
     #[test]
     fn test_category_info() {
         let control = json!({
-            "categoryinfo": {
                     "size": 2966,
                     "pages": 2961,
                     "files": 3,
                     "subcats": 2
-                }
         });
 
-        let exp: CategoryInfo = CategoryInfo(CatgeoryInfoItem {
-            size: Some(2966),
-            pages: Some(2961),
-            files: Some(3),
-            subcats: Some(2),
-        });
+        let resp: CategoryInfo = from_value(control).expect("failed to convert json to CategoryInfo");
 
-        assert_eq!(
-            from_value::<CategoryInfo>(control).expect("Failed to convert control to CategoryInfo"),
-            exp
-        )
+        assert_de_tokens(
+            &resp, 
+        &[
+                Token::TupleStruct { name: "CategoryInfo", len: 1 },
+                Token::Struct { name: "CategoryInfoItem", len: 4 },
+                Token::Str("size"),
+                Token::Some,
+                Token::U32(2966),
+                Token::Str("pages"),
+                Token::Some,
+                Token::U32(2961),
+                Token::Str("files"),
+                Token::Some,
+                Token::U32(3),
+                Token::Str("subcats"),
+                Token::Some,
+                Token::U32(2),
+                Token::StructEnd,
+                Token::TupleStructEnd
+        ]);
+        
+        // let exp: CategoryInfo = CategoryInfo(CategoryInfoItem {
+        //     size: Some(2966),
+        //     pages: Some(2961),
+        //     files: Some(3),
+        //     subcats: Some(2),
+        // });
     }
 
     #[test]
     fn test_categories() {
-        let control = json!({
-            "categories": [
+        let control = json!(
+            [
                     {
                         "ns": 14,
                         "title": "Category:Articles needing cleanup"
@@ -297,27 +335,51 @@ mod tests {
                         "title": "Category:Articles under construction"
                     }
             ]
-        });
+        );
 
-        let exp = Categories(vec![
-            CategoryItem {
-                ns: 14,
-                title: "Category:Articles needing cleanup".into(),
-            },
-            CategoryItem {
-                ns: 14,
-                title: "Category:Articles needing fact cleanup".into(),
-            },
-            CategoryItem {
-                ns: 14,
-                title: "Category:Articles under construction".into(),
-            },
-        ]);
+        let resp: Categories = from_value(control).expect("Failed to convert json to categories");
 
-        assert_eq!(
-            from_value::<Categories>(control).expect("Failed to convert control to Categories"),
-            exp
-        )
+        assert_de_tokens(
+            &resp,
+            &[
+                Token::Seq { len: Some(3) },
+                Token::Struct { name: "CategoryItem", len: 2 },
+                Token::Str("ns"),
+                Token::U16(14),
+                Token::Str("title"),
+                Token::Str("Category:Articles needing cleanup"),
+                Token::StructEnd,
+                Token::Struct { name: "CategoryItem", len: 2 },
+                Token::Str("ns"),
+                Token::U16(14),
+                Token::Str("title"),
+                Token::Str("Category:Articles needing fact cleanup"),
+                Token::StructEnd,
+                Token::Struct { name: "CategoryItem", len: 2 },
+                Token::Str("ns"),
+                Token::U16(14),
+                Token::Str("title"),
+                Token::Str("Category:Articles under construction"),
+                Token::StructEnd,
+                Token::SeqEnd
+            ]
+        );
+
+        // let exp = Categories(vec![
+        //     CategoryItem {
+        //         ns: 14,
+        //         title: "Category:Articles needing cleanup".into(),
+        //     },
+        //     CategoryItem {
+        //         ns: 14,
+        //         title: "Category:Articles needing fact cleanup".into(),
+        //     },
+        //     CategoryItem {
+        //         ns: 14,
+        //         title: "Category:Articles under construction".into(),
+        //     },
+        // ]);
+
     }
 
     #[test]
@@ -331,27 +393,44 @@ mod tests {
                 "pageimage": "Grimoire_The_Hive.jpg"
         });
 
-        let og = Original {
-            source: "https://destiny.wiki.gallery/images/b/b4/Grimoire_The_Hive.jpg".into(),
-            width: 560,
-            height: 728,
-        };
+        let resp: PageImages = from_value(control).expect("Failed to convert json to PageImages");
 
-        let exp = PageImages(PageImageItem {
-            original: Some(og),
-            pageimage: Some("Grimoire_The_Hive.jpg".into()),
-        });
+        assert_de_tokens(
+        &resp,
+        &[
+            // Pretend the transparent wrapper is a struct
+            Token::Struct { name: "PageImageItem", len: 2 },
 
-        assert_eq!(
-            from_value::<PageImages>(control).expect("Failed to convert control to PageImages"),
-            exp
-        )
+            // --- original ---
+            Token::Str("original"),
+            Token::Some,
+            Token::Struct { name: "Original", len: 3 },
+
+            Token::Str("source"),
+            Token::Str("https://destiny.wiki.gallery/images/b/b4/Grimoire_The_Hive.jpg"),
+
+            Token::Str("width"),
+            Token::U32(560),
+
+            Token::Str("height"),
+            Token::U32(728),
+
+            Token::StructEnd,
+
+            // --- pageimage ---
+            Token::Str("pageimage"),
+            Token::Some,
+            Token::Str("Grimoire_The_Hive.jpg"),
+
+            Token::StructEnd,
+        ],
+    );
+
     }
 
     #[test]
     fn test_images() {
-        let control = json!({
-            "images": [
+        let control = json!( [
                     {
                         "ns": 6,
                         "title": "File:Alakhul.jpg"
@@ -364,28 +443,42 @@ mod tests {
                         "ns": 6,
                         "title": "File:Battle on Saturn.jpg"
                     }
-            ]
-        });
+            ]);
+        let resp: Images = from_value(control).expect("Failed to convert json to Images");
 
-        let exp = Images(vec![
-            ImageItem {
-                ns: 6,
-                title: "File:Alakhul.jpg".into(),
-            },
-            ImageItem {
-                ns: 6,
-                title: "File:ArcS.png".into(),
-            },
-            ImageItem {
-                ns: 6,
-                title: "File:Battle on Saturn.jpg".into(),
-            },
-        ]);
+        assert_de_tokens(
+        &resp,
+        &[
+            Token::Seq { len: Some(3) },
 
-        assert_eq!(
-            from_value::<Images>(control).expect("Failed to convert control to Images"),
-            exp
-        )
+            // 1st item
+            Token::Map { len: Some(2) },
+            Token::Str("ns"),
+            Token::U32(6),
+            Token::Str("title"),
+            Token::Str("File:Alakhul.jpg"),
+            Token::MapEnd,
+
+            // 2nd item
+            Token::Map { len: Some(2) },
+            Token::Str("ns"),
+            Token::U32(6),
+            Token::Str("title"),
+            Token::Str("File:ArcS.png"),
+            Token::MapEnd,
+
+            // 3rd item
+            Token::Map { len: Some(2) },
+            Token::Str("ns"),
+            Token::U32(6),
+            Token::Str("title"),
+            Token::Str("File:Battle on Saturn.jpg"),
+            Token::MapEnd,
+
+            Token::SeqEnd,
+        ],
+    );
+
     }
 
     #[test]
@@ -400,14 +493,25 @@ mod tests {
             "length": 220921
         });
 
-        let exp = Info(InfoItem {
-            contentmodel: Some("wikitext".into()),
-            length: Some(220921),
-        });
+        let resp: Info = from_value(control).expect("Failed to convert json to Info");
 
-        assert_eq!(
-            from_value::<Info>(control).expect("Failed to convert control to PageInfo"),
-            exp
-        )
+        assert_de_tokens(
+        &resp,
+        &[
+            // Outer newtype struct: Info(...)
+            Token::Struct { name: "InfoItem", len: 2 },
+
+            Token::Str("contentmodel"),
+            Token::Some,
+            Token::Str("wikitext"),
+
+            Token::Str("length"),
+            Token::Some,
+            Token::U64(220921),
+
+            Token::StructEnd,
+        ],
+    );
+
     }
 }

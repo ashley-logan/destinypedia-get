@@ -6,7 +6,7 @@ use std::collections::HashMap;
 #[derive(Debug, Deserialize)]
 pub(super) struct QueryResultHelper {
     pub pageid: Option<i32>,
-    pub(super) ns: Option<u16>,
+    pub(super) ns: Option<crate::NAMESPACE>,
     pub(super) title: Option<String>,
     pub(super) categories: Option<Categories>,
     pub(super) categoryinfo: Option<CategoryInfo>,

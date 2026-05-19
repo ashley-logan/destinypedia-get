@@ -157,7 +157,7 @@ pub fn write_row_categories(
         .map_err(|e| e.into())
 }
 
-fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
+pub fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
     // let ddir: PathBuf = dirs::data_dir().expect("ERROR: Couldn't find data directory");
     // let DB_URL = format!(
     //     "sqlite://{}",

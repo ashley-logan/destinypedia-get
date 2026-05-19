@@ -45,7 +45,7 @@ impl From<(u32, u32)> for SubCategoryRow {
 }
 
 pub fn into_images_row(query: QueryResult) -> super::error::DatabaseResult<ImagesRow> {
-    debug_assert!(!matches!(query.ns, NAMESPACE::FILE)); // this check should happen in the caller
+    debug_assert!(matches!(query.ns, NAMESPACE::FILE)); // this check should happen in the caller
     match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
         Some(Some(item)) => match item {
             ImageInfoItem {
@@ -72,9 +72,9 @@ pub fn into_images_row(query: QueryResult) -> super::error::DatabaseResult<Image
 }
 
 pub fn into_categories_row(query: QueryResult) -> super::error::DatabaseResult<CategoriesRow> {
-    debug_assert!(!matches!(query.ns, NAMESPACE::CATEGORY)); // this check should happen in the caller
+    debug_assert!(matches!(query.ns, NAMESPACE::CATEGORY)); // this check should happen in the caller
     match query.categoryinfo {
-        Some(CategoryInfo(CatgeoryInfoItem {
+        Some(CategoryInfo(CategoryInfoItem {
             files: Some(files_),
             subcats: Some(subcats_),
             ..
