@@ -126,7 +126,7 @@ pub fn write_row_image_categories(
 pub fn write_row_images(conn: &Connection, row: ImagesRow) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
-        INSERT INTO IMAGES (id, title, url, size, width, height, timestamp)
+        INSERT OR IGNORE INTO IMAGES (id, title, url, size, width, height, timestamp)
         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
         ",
     )?;
@@ -149,7 +149,7 @@ pub fn write_row_categories(
 ) -> super::error::DatabaseResult<usize> {
     let mut stmt = conn.prepare_cached(
         r"
-        INSERT INTO CATEGORIES (id, title, subcats, files)
+        INSERT OR IGNORE INTO CATEGORIES (id, title, subcats, files)
         VALUES (?1, ?2, ?3, ?4)
         ",
     )?;
@@ -171,7 +171,7 @@ pub fn create_tables(conn_path: impl AsRef<Path>) -> super::error::DatabaseResul
     tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS IMAGES (
-                id INTEGER NOT NULL,
+                id INTEGER PRIMARY KEY,
                 title TEXT NOT NULL,
                 url TEXT NOT NULL,
                 size REAL,
@@ -198,7 +198,7 @@ pub fn create_tables(conn_path: impl AsRef<Path>) -> super::error::DatabaseResul
     tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS CATEGORIES (
-                id INTEGER NOT NULL,
+                id INTEGER PRIMARY KEY,
                 title TEXT NOT NULL,
                 subcats INTEGER,
                 files INTEGER

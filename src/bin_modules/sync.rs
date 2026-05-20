@@ -19,7 +19,6 @@ use std::sync::{
     Arc,
     atomic::{AtomicBool, Ordering},
 };
-use std::thread::JoinHandle;
 use tokio::task;
 
 const USER_AGENT: &'static str = "DESTINY_FETCH";
@@ -92,9 +91,10 @@ pub async fn cm_request_worker(
     recv: async_channel::Receiver<u32>,
     send: Sender<(u32, Vec<u8>)>,
 ) -> Result<()> {
+    use tokio::time;
     loop {
-        match recv.recv().await {
-            Ok(id) => {
+        match time::timeout(time::Duration::from_secs(10), recv.recv()).await {
+            Ok(Ok(id)) => {
                 let mut params: PARAMS<Query> =
                     super::get::get_category_members_sync_params(id.clone())
                         .expect("get_category_members_sync_params failed");
@@ -129,7 +129,7 @@ pub async fn cm_request_worker(
                     send.try_send((id, b)).unwrap(); // send owned bytes into producer-consumer channel
                 }
             }
-            Err(async_channel::RecvError) => break,
+            Err(_) | Ok(Err(_)) => break,
         }
     }
     drop(send);
@@ -141,7 +141,6 @@ pub async fn cm_request_worker(
 fn process_response(
     resp_bytes: Vec<u8>,
     resp_id: u32,
-    has_categories: Arc<AtomicBool>,
     send_id: async_channel::Sender<u32>,
     send_row: Sender<Row>,
 ) -> Result<()> {
@@ -149,7 +148,6 @@ fn process_response(
     let resp: QueryResponse = from_slice(&resp_bytes[..])?;
     resp.results.into_par_iter().for_each(|qr| match qr.ns {
         NAMESPACE::CATEGORY => {
-            has_categories.store(true, Ordering::Release);
             send_id.send_blocking(qr.pageid.clone()).unwrap();
             send_row
                 .send(Row::SubCategory(SubCategoryRow {
@@ -205,18 +203,12 @@ pub(crate) fn cm_response_worker(
     send: async_channel::Sender<u32>,
     send_write: Sender<Row>,
 ) -> Result<()> {
-    let child_categories: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-    let timeout = tokio::time::Duration::from_secs(10);
+    let timeout = tokio::time::Duration::from_secs(30);
     loop {
         match recv.recv_timeout(timeout) {
             Ok((id, bytes)) => {
-                child_categories.store(false, Ordering::Release);
                 let (send_id, send_row) = (send.clone(), send_write.clone());
-                let has_categories: Arc<AtomicBool> = Arc::clone(&child_categories);
-                process_response(bytes, id, has_categories, send_id, send_row).unwrap();
-                if !child_categories.load(Ordering::Acquire) {
-                    break;
-                }
+                process_response(bytes, id, send_id, send_row).unwrap();
             }
             Err(RecvTimeoutError::Disconnected) => break,
             Err(RecvTimeoutError::Timeout) => panic!("response worker timed out"),
@@ -234,10 +226,7 @@ mod tests {
     use crate::bin_modules::get;
     use crossbeam_channel::{Receiver, Sender, unbounded};
     use std::fs;
-    use std::{
-        path::{Path, PathBuf},
-        str::FromStr,
-    };
+    use std::{path::PathBuf, str::FromStr};
     use tokio::time;
     const ROOT_ID: u32 = 364;
     const ARMOR_CAT_ID: u32 = 33671;
