@@ -78,7 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_category_members() {
-        let params: PARAMS<Query> = get_category_members_sync_params(363_u32).unwrap();
+        let params: PARAMS<Query> = get_category_members_sync_params(33671).unwrap();
 
         let r = Client::new().get(BASE).query(&params).send().await.unwrap();
         assert!(r.status().is_success());

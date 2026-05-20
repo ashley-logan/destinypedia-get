@@ -12,6 +12,7 @@ name = "destiny-fetch"
 path = "src/main.rs"
 
 [dependencies]
+async-channel = "2.5.0"
 clap = { version = "4.6.1", features = ["unstable-doc", "cargo", "derive"] }
 crossbeam-channel = "0.5.15"
 derive_more = { version = "2.1.1", features = ["display", "error", "from", "try_from"] }

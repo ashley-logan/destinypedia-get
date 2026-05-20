@@ -1,6 +1,7 @@
 use destinypedia::NAMESPACE;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
 
+#[derive(Debug)]
 pub enum Row {
     Images(ImagesRow),
     Categories(CategoriesRow),
@@ -8,6 +9,7 @@ pub enum Row {
     SubCategory(SubCategoryRow),
 }
 
+#[derive(Debug)]
 pub struct ImagesRow {
     pub id: u32,
     pub title: String,
@@ -18,6 +20,7 @@ pub struct ImagesRow {
     pub timestamp: String,
     // category_titles: Vec<String>
 }
+#[derive(Debug)]
 pub struct CategoriesRow {
     pub id: u32,
     pub title: String,
@@ -25,11 +28,13 @@ pub struct CategoriesRow {
     pub subcats: u32,
 }
 
+#[derive(Debug)]
 pub struct ImageCategoryRow {
     pub image_id: u32,
     pub category_id: u32,
 }
 
+#[derive(Debug)]
 pub struct SubCategoryRow {
     pub id: u32,
     pub subcategory_id: u32,
@@ -45,7 +50,6 @@ impl From<(u32, u32)> for SubCategoryRow {
 }
 
 pub fn into_images_row(query: QueryResult) -> super::error::DatabaseResult<ImagesRow> {
-    debug_assert!(matches!(query.ns, NAMESPACE::FILE)); // this check should happen in the caller
     match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
         Some(Some(item)) => match item {
             ImageInfoItem {
@@ -72,7 +76,6 @@ pub fn into_images_row(query: QueryResult) -> super::error::DatabaseResult<Image
 }
 
 pub fn into_categories_row(query: QueryResult) -> super::error::DatabaseResult<CategoriesRow> {
-    debug_assert!(matches!(query.ns, NAMESPACE::CATEGORY)); // this check should happen in the caller
     match query.categoryinfo {
         Some(CategoryInfo(CategoryInfoItem {
             files: Some(files_),

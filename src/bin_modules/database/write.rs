@@ -21,7 +21,7 @@ DATABASE SCHEMA
 */
 
 pub fn dispatch_row_writer(
-    conn: &Connection,
+    conn: Connection,
     recv: Receiver<Row>,
     batch_size: usize,
 ) -> super::error::DatabaseResult<HashMap<String, usize>> {
@@ -35,30 +35,31 @@ pub fn dispatch_row_writer(
         ("img_count".into(), 0_usize),
     ]);
 
-    let mut tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
+    let mut tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)
+        .expect("unable to open new transaction");
     while let Ok(row) = recv.recv() {
         let rows_inserted = match row {
             Row::SubCategory(sc) => {
-                let n = write_row_subcategories(conn, sc)?;
+                let n = write_row_subcategories(&conn, sc)?;
                 counters
                     .entry("subcat_count".into())
                     .and_modify(|i| *i += n);
                 n
             }
             Row::ImageCategory(ic) => {
-                let n = write_row_image_categories(conn, ic)?;
+                let n = write_row_image_categories(&conn, ic)?;
                 counters
                     .entry("imgcat_count".into())
                     .and_modify(|i| *i += n);
                 n
             }
             Row::Categories(c) => {
-                let n = write_row_categories(conn, c)?;
+                let n = write_row_categories(&conn, c)?;
                 counters.entry("cat_count".into()).and_modify(|i| *i += n);
                 n
             }
             Row::Images(i) => {
-                let n = write_row_images(conn, i)?;
+                let n = write_row_images(&conn, i)?;
                 counters.entry("img_count".into()).and_modify(|i| *i += n);
                 n
             }
@@ -69,7 +70,7 @@ pub fn dispatch_row_writer(
 
         if counters["insert_count"] >= batch_size {
             tx.commit()?;
-            tx = Transaction::new_unchecked(conn, rusqlite::TransactionBehavior::Deferred)?;
+            tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)?;
             counters.entry("batch_count".into()).and_modify(|i| *i += 1);
             dbg!(format!(
                 "BATCH #{} WRITTEN => {} ROWS INSERTED",
@@ -157,7 +158,7 @@ pub fn write_row_categories(
         .map_err(|e| e.into())
 }
 
-pub fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
+pub fn create_tables(conn_path: impl AsRef<Path>) -> super::error::DatabaseResult<()> {
     // let ddir: PathBuf = dirs::data_dir().expect("ERROR: Couldn't find data directory");
     // let DB_URL = format!(
     //     "sqlite://{}",
@@ -170,9 +171,9 @@ pub fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
     tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS IMAGES (
-                id INTEGER PRIMARY KEY,
+                id INTEGER NOT NULL,
                 title TEXT NOT NULL,
-                url TEXT,
+                url TEXT NOT NULL,
                 size REAL,
                 width INTEGER,
                 height INTEGER,
@@ -197,7 +198,7 @@ pub fn create_tables(conn_path: PathBuf) -> super::error::DatabaseResult<()> {
     tx.execute(
         r"
             CREATE TABLE IF NOT EXISTS CATEGORIES (
-                id INTEGER PRIMARY KEY,
+                id INTEGER NOT NULL,
                 title TEXT NOT NULL,
                 subcats INTEGER,
                 files INTEGER
@@ -233,7 +234,7 @@ mod tests {
     #[test]
     fn test_writer_small() {
         let (sx, rx) = unbounded::<Row>();
-        create_tables("data/dev.db".into());
+        create_tables(Path::new("data/dev.db"));
         let conn = Connection::open("data/dev.db").unwrap();
 
         let mut ids: std::ops::Range<u32> = 0..1000;
@@ -241,7 +242,7 @@ mod tests {
 
         thread::scope(|s| {
             s.spawn(move || {
-                dispatch_row_writer(&conn, rx, 300_usize).unwrap();
+                dispatch_row_writer(conn, rx, 300_usize).unwrap();
             });
             s.spawn(move || {
                 for _ in 0..1000 {
