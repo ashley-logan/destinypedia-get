@@ -13,7 +13,7 @@ pub enum Row {
 pub struct ImagesRow {
     pub id: u32,
     pub title: String,
-    pub size: f32,
+    pub size: u32,
     pub width: u32,
     pub height: u32,
     pub url: String,
@@ -49,44 +49,60 @@ impl From<(u32, u32)> for SubCategoryRow {
     }
 }
 
-pub fn into_images_row(query: QueryResult) -> super::error::DatabaseResult<ImagesRow> {
-    match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
-        Some(Some(item)) => match item {
-            ImageInfoItem {
-                canonicaltitle: Some(title),
-                size: Some(size_),
-                width: Some(width),
-                height: Some(height),
-                url: Some(url),
-                timestamp: Some(timestamp),
-            } => Ok(ImagesRow {
+impl TryFrom<QueryResult> for CategoriesRow {
+    type Error = crate::bin_modules::DestinyFetchError;
+    fn try_from(query: QueryResult) -> Result<Self, Self::Error> {
+        match query.categoryinfo {
+            Some(CategoryInfo(CategoryInfoItem {
+                files: Some(files_),
+                subcats: Some(subcats_),
+                ..
+            })) => Ok(CategoriesRow {
                 id: query.pageid,
-                title,
-                size: (size_ as f32) / 1024_f32,
-                width,
-                height,
-                url,
-                timestamp,
+                title: {
+                    match query.title.strip_prefix(r"Category:") {
+                        Some(s) => s.into(),
+                        None => query.title,
+                    }
+                },
+                files: files_,
+                subcats: subcats_,
             }),
-
-            _ => Err(super::error::DatabaseError::IntoRowConvertError),
-        },
-        _ => Err(super::error::DatabaseError::IntoRowConvertError),
+            _ => Err(super::error::DatabaseError::IntoRowConvertError)?,
+        }
     }
 }
 
-pub fn into_categories_row(query: QueryResult) -> super::error::DatabaseResult<CategoriesRow> {
-    match query.categoryinfo {
-        Some(CategoryInfo(CategoryInfoItem {
-            files: Some(files_),
-            subcats: Some(subcats_),
-            ..
-        })) => Ok(CategoriesRow {
-            id: query.pageid,
-            title: query.title,
-            files: files_,
-            subcats: subcats_,
-        }),
-        _ => Err(super::error::DatabaseError::IntoRowConvertError),
+impl TryFrom<QueryResult> for ImagesRow {
+    type Error = crate::bin_modules::DestinyFetchError;
+    fn try_from(query: QueryResult) -> Result<Self, Self::Error> {
+        match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
+            Some(Some(item)) => match item {
+                ImageInfoItem {
+                    canonicaltitle: Some(title_),
+                    size: Some(size_),
+                    width: Some(width),
+                    height: Some(height),
+                    url: Some(url),
+                    timestamp: Some(timestamp),
+                } => Ok(ImagesRow {
+                    id: query.pageid,
+                    title: {
+                        match title_.strip_prefix(r"File:") {
+                            Some(s) => s.into(),
+                            None => title_,
+                        }
+                    },
+                    size: size_ / 1024,
+                    width,
+                    height,
+                    url,
+                    timestamp,
+                }),
+
+                _ => Err(super::error::DatabaseError::IntoRowConvertError)?,
+            },
+            _ => Err(super::error::DatabaseError::IntoRowConvertError)?,
+        }
     }
 }

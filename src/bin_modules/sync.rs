@@ -1,43 +1,43 @@
 use super::Result;
-use super::database::rows::{
-    CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow, into_categories_row,
-    into_images_row,
-};
-use super::database::write::{create_tables, dispatch_row_writer};
+use super::database::rows::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
+use super::database::write::create_tables;
 use async_channel;
-use crossbeam_channel::{Receiver, RecvTimeoutError, SendError, Sender, bounded, unbounded};
+use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, bounded, unbounded};
 use destinypedia::NAMESPACE;
 use destinypedia::request::{PARAMS, Query};
 use destinypedia::response::{Continue, QueryResponse};
-use dirs;
 use reqwest::{Client, Response};
 use rusqlite::Connection;
 use serde_json::from_slice;
 use std::collections::HashMap;
+use std::fs;
 use std::path;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
+use std::sync::Arc;
 use tokio::task;
 
 const USER_AGENT: &'static str = "DESTINY_FETCH";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
 const CATEGORY_IMAGES_ID: u32 = 364;
 
+pub fn create_backup(original: impl AsRef<path::Path>) -> Result<path::PathBuf> {
+    let backup: path::PathBuf = original.as_ref().with_added_extension("bak");
+    fs::rename(original, backup.as_path())?;
+    Ok(backup)
+}
+
 pub async fn sync(
-    database: path::PathBuf,
+    database: impl AsRef<path::Path>,
     starting_pageid: Option<u32>,
 ) -> Result<HashMap<String, usize>> {
     let start_t = tokio::time::Instant::now();
 
-    create_tables(&database)?;
+    let mut conn: Connection = Connection::open(&database)?;
+
+    create_tables(&mut conn)?;
 
     let (pageid_send, pageid_recv) = async_channel::bounded::<u32>(500);
     let (id_bytes_send, id_bytes_recv) = unbounded::<(u32, Vec<u8>)>();
     let (row_send, row_recv) = bounded::<Row>(500);
-
-    let conn = Connection::open(&database)?;
 
     pageid_send
         .send(starting_pageid.unwrap_or(CATEGORY_IMAGES_ID))
@@ -86,14 +86,14 @@ pub async fn sync(
 /// consumer sends Row(s) into row channel
 /// writer recieves rows and prepares an insert statement
 /// once batch size is reached (or on final flush) writer bulk writes to the db
-pub async fn cm_request_worker(
+pub(crate) async fn cm_request_worker(
     client: Arc<Client>,
     recv: async_channel::Receiver<u32>,
     send: Sender<(u32, Vec<u8>)>,
 ) -> Result<()> {
     use tokio::time;
     loop {
-        match time::timeout(time::Duration::from_secs(10), recv.recv()).await {
+        match time::timeout(time::Duration::from_secs(5), recv.recv()).await {
             Ok(Ok(id)) => {
                 let mut params: PARAMS<Query> =
                     super::get::get_category_members_sync_params(id.clone())
@@ -156,7 +156,7 @@ fn process_response(
                 }))
                 .expect("failed to send SubCategory row to writer");
             send_row
-                .send(Row::Categories(into_categories_row(qr).expect(
+                .send(Row::Categories(qr.try_into().expect(
                     "failed to convert category result into CategoriesRow, missing category info",
                 )))
                 .expect("failed to send Categories row to writer");
@@ -169,7 +169,7 @@ fn process_response(
                 }))
                 .expect("failed to send ImageCategoryRow to writer");
             send_row
-                .send(Row::Images(into_images_row(qr).expect(
+                .send(Row::Images(qr.try_into().expect(
                     "failed to convert image result into ImagesRow, missing imageinfo",
                 )))
                 .expect("failed to send ImagesRow to writer");
@@ -203,7 +203,7 @@ pub(crate) fn cm_response_worker(
     send: async_channel::Sender<u32>,
     send_write: Sender<Row>,
 ) -> Result<()> {
-    let timeout = tokio::time::Duration::from_secs(30);
+    let timeout = tokio::time::Duration::from_secs(10);
     loop {
         match recv.recv_timeout(timeout) {
             Ok((id, bytes)) => {
@@ -218,6 +218,135 @@ pub(crate) fn cm_response_worker(
     drop(send_write);
     drop(send);
     Ok(())
+}
+
+pub(crate) fn dispatch_row_writer(
+    mut conn: Connection,
+    recv: Receiver<Row>,
+    batch_size: usize,
+) -> Result<HashMap<String, usize>> {
+    use super::database::write;
+    use rusqlite::Transaction;
+    use std::{thread::sleep, time::Duration};
+    // ---------------------
+    // BEGIN SETUP
+    // counters keep track of transaction information for caching
+    // tx begins intial transaction
+    //
+    let mut counters: HashMap<String, usize> = HashMap::from_iter([
+        ("batch_count".into(), 0_usize),        // total batches inserted
+        ("insert_count".into(), 0_usize),       // rows inserts in current transaction
+        ("total_insert_count".into(), 0_usize), // total row inserts for entire sync
+        ("subcat_count".into(), 0_usize),       // total rows inserted SUBCATEGORIES table
+        ("imgcat_count".into(), 0_usize),       // total rows inserted IMAGE_CATEGORIES table
+        ("cat_count".into(), 0_usize),          // total rows inserted CATEGORIES table
+        ("img_count".into(), 0_usize),          // total rows inserted IMAGES table
+    ]);
+
+    let mut tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)
+        .expect("unable to open new transaction");
+    //
+    // END SETUP
+    // ---------------------
+    // BEGIN ROW INSERTION LOOP
+    // loop over the row reciever channel until dropped
+    // pattern match the row and call the corresponding write helper
+    // update the appropriate counter map entry with the return value of the write helper
+    // commit current transaction when map['insert_count'] >= batch_size
+    // and initialize new transaction
+    //
+    while let Ok(row) = recv.recv() {
+        let rows_inserted = match row {
+            Row::SubCategory(sc) => {
+                let n = write::write_row_subcategories(&conn, sc)?;
+                counters
+                    .entry("subcat_count".into())
+                    .and_modify(|i| *i += n);
+                n
+            }
+            Row::ImageCategory(ic) => {
+                let n = write::write_row_image_categories(&conn, ic)?;
+                counters
+                    .entry("imgcat_count".into())
+                    .and_modify(|i| *i += n);
+                n
+            }
+            Row::Categories(c) => {
+                let n = write::write_row_categories(&conn, c)?;
+                counters.entry("cat_count".into()).and_modify(|i| *i += n);
+                n
+            }
+            Row::Images(i) => {
+                let n = write::write_row_images(&conn, i)?;
+                counters.entry("img_count".into()).and_modify(|i| *i += n);
+                n
+            }
+        };
+        counters
+            .entry("insert_count".into())
+            .and_modify(|i| *i += rows_inserted);
+
+        // write to database when batch size is met
+        if counters["insert_count"] >= batch_size {
+            tx.commit()?;
+            tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)?;
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+            dbg!(format!(
+                "BATCH #{} WRITTEN => {} ROWS INSERTED",
+                counters["batch_count"], counters["insert_count"]
+            ));
+
+            // update total insert count with transaction's insert count
+            *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
+            // reset insert count for this transaction to 0
+            counters.insert("insert_count".into(), 0);
+        }
+    }
+    //
+    // END ROW INSERTION LOOP
+    // ---------------------
+    // BEGIN FINAL TRANSACTION
+    // commit all rows remaining in the buffer
+    // and update the transaction summary
+    //
+    tx.commit()?;
+    counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+    dbg!(format!(
+        "FINAL BATCH #{} WRITTEN => {} ROWS INSERTED",
+        counters["batch_count"], counters["insert_count"]
+    ));
+    *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
+    counters.insert("insert_count".into(), 0);
+    dbg!(format!(
+        "WRITER COMPLETE\n\tTOTAL ROWS INSERTED => {}\n\tTOTAL BATCHES PROCESSED => {}",
+        counters["total_insert_count"], counters["batch_count"]
+    ));
+    //
+    // END FINAL TRANSACTION
+    // ---------------------
+    // BEGIN CONN SHUTDOWN LOOP
+    // after each failed attempt, wait 2 seconds before retrying close
+    // for a max of 5 attempts
+    //
+    conn.pragma_update(None, "wal_checkpoint", &"FULL")?;
+    let mut shutdown_attempts: u8 = 0;
+    while let Err((c, e)) = conn.close() {
+        match shutdown_attempts {
+            0..5 => {
+                sleep(Duration::from_millis(500));
+                shutdown_attempts += 1;
+                conn = c;
+            }
+            5.. => return Err(e)?,
+        }
+    }
+    dbg!(format!(
+        "database connection successfully shutdown on attempt {shutdown_attempts}"
+    ));
+    //
+    //END CONN SHUTDOWN LOOP
+    // ---------------------
+    Ok(counters)
 }
 
 #[cfg(test)]
@@ -346,8 +475,9 @@ mod tests {
             .unwrap()
             .to_vec();
 
-        create_tables(PathBuf::from_str("data/dev.db").unwrap()).unwrap();
-        let conn = Connection::open("data/dev.db").unwrap();
+        let mut conn = Connection::open("data/dev.db").unwrap();
+
+        create_tables(&mut conn).unwrap();
 
         let handle = std::thread::spawn(move || dispatch_row_writer(conn, recv_row, 100));
 
