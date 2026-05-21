@@ -9,7 +9,8 @@ fn main() {
 }
 
 async fn sync_destinypedia() -> Result<()> {
-    let db = dirs::data_dir()
+    let db = dirs::data_local_dir()
+        .or(dirs::data_dir())
         .ok_or(DestinyFetchError::IOErr)?
         .join("destiny_fetch.db");
     let tmp = db.with_added_extension("tmp");
@@ -22,13 +23,28 @@ async fn sync_destinypedia() -> Result<()> {
         }
     };
 
-    sync::sync(&tmp, None).await?;
+    let sync_result = sync::sync(&tmp, None).await;
 
-    fs::rename(tmp, db)?;
+    match sync_result {
+        Ok(map) => {
+            fs::rename(tmp, db)?;
 
-    if let Some(p) = backup {
-        fs::remove_file(p)?;
+            if let Some(p) = backup {
+                fs::remove_file(p)?;
+            }
+
+            todo!("turn map into cache payload")
+        }
+        Err(e) {
+            dbg!(e);
+            if let Some(p) = backup {
+                fs::rename(backup, db)?;
+            }
+            let _ = fs::remove_file(tmp);
+        }
     }
+
+    
 
     Ok(())
 }
