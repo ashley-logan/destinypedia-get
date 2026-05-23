@@ -1,5 +1,5 @@
 use clap::{
-    Args, Parser, Subcommand,
+    Args, Parser, Subcommand, ValueEnum,
     builder::{PathBufValueParser, TypedValueParser},
 };
 use std::path::PathBuf;
@@ -22,21 +22,120 @@ fn parse_as_file(p: PathBuf) -> Result<PathBuf, &'static str> {
     }
 }
 
+fn parse_search_command(args: SearchArgs) {
+    ()
+}
+
+fn parse_download_command(args: DownloadArgs) {
+    ()
+}
+
+pub fn handle_args(cli: CLI) {
+    match cli.cmd {
+        Command::Search(s) => parse_search_command(s),
+        Command::Download(d) => parse_download_command(d),
+    }
+}
+
 #[derive(Parser)]
 #[command(version, about = "CLI tool for fetching images from destinypedia.com", long_about = None)]
-pub struct CLI {
+pub(crate) struct CLI {
     #[command(subcommand)]
-    cmd: Commands, // destinypedia-get [fetch | download] ...
+    pub(crate) cmd: Command, // destinypedia-get [search | download] ...
+}
 
+#[derive(Debug, Subcommand)]
+enum Command {
+    Search(SearchArgs),
+    Download(DownloadArgs),
+}
+
+#[derive(Debug, Args)]
+struct SearchArgs {
     #[command(flatten)]
-    page_input: Pages,
+    result_type: ResultType, // filter by images, categories, or both
+    #[arg(long = "in-category", short = 'c')]
+    in_category: Option<String>, // only show results in this category
+    #[arg(long, short = 'o')]
+    output: Option<PathBuf>, // --output [-o] batch1.json
+    #[arg(long, short = 'n')]
+    limit: Option<u32>, // show this many results; default all
+    #[command(flatten)]
+    detail_level: Option<DetailLevel>, // amount of extra information provided for each result
+    #[arg(long, value_enum)]
+    ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
+    #[arg(long)]
+    maxsize: Option<u32>,
+    #[arg(long)]
+    minsize: Option<u32>,
+    #[arg(long)]
+    before: Option<String>,
+    #[arg(long)]
+    after: Option<String>,
+    #[arg(long)]
+    maxwidth: Option<u32>,
+    #[arg(long)]
+    minwidth: Option<u32>,
+    #[arg(long)]
+    maxheight: Option<u32>,
+    #[arg(long)]
+    minheight: Option<u32>,
+    #[arg(long)]
+    maxpixels: Option<u32>,
+    #[arg(long)]
+    minpixels: Option<u32>,
+}
+
+#[derive(Debug, Args)]
+struct DownloadArgs {
+    #[command(flatten)]
+    pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
+
+    #[arg(
+        long = "target-dir",
+        short = 'd',
+        value_name = "DOWNLOAD_DIR",
+        help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
+    )]
+    #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
+    target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
 }
 
 #[derive(Subcommand)]
-pub enum Commands {
-    Fetch {
-        #[arg(long, short = 'o', value_name = "OUTPUT_FILE")]
+pub(crate) enum Commands {
+    Search {
+        #[command(flatten)]
+        result_type: ResultType, // filter by images, categories, or both
+        #[arg(long = "in-category", short = 'c')]
+        in_category: Option<String>, // only show results in this category
+        #[arg(long, short = 'o')]
         output: Option<PathBuf>, // --output [-o] batch1.json
+        #[arg(long, short = 'n')]
+        limit: Option<u32>, // show this many results; default all
+        #[command(flatten)]
+        detail_level: Option<DetailLevel>, // amount of extra information provided for each result
+        #[arg(long, value_enum)]
+        ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
+        #[arg(long)]
+        maxsize: Option<u32>,
+        #[arg(long)]
+        minsize: Option<u32>,
+        #[arg(long)]
+        before: Option<String>,
+        #[arg(long)]
+        after: Option<String>,
+        #[arg(long)]
+        maxwidth: Option<u32>,
+        #[arg(long)]
+        minwidth: Option<u32>,
+        #[arg(long)]
+        maxheight: Option<u32>,
+        #[arg(long)]
+        minheight: Option<u32>,
+        #[arg(long)]
+        maxpixels: Option<u32>,
+        #[arg(long)]
+        minpixels: Option<u32>,
     },
     Download {
         #[command(flatten)]
@@ -52,7 +151,49 @@ pub enum Commands {
         target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
     },
 }
-#[derive(Args)]
+
+#[derive(Args, Debug, Clone)]
+#[group(required = true, multiple = false)]
+pub(crate) struct ResultType {
+    /// return image results only
+    #[arg(long, short = 'I')]
+    images: bool,
+
+    /// return category results only
+    #[arg(long, short = 'C')]
+    categories: bool,
+
+    /// returns both category and image results
+    #[arg(long, short = 'A')]
+    all: bool,
+}
+
+#[derive(Args, Debug, Clone)]
+#[group(required = false, multiple = false)]
+pub(crate) struct DetailLevel {
+    /// return image results only
+    #[arg(long, short = 'd')]
+    detailed: bool,
+
+    /// return category results only
+    #[arg(long, short = 's')]
+    simple: bool,
+
+    /// returns both category and image results
+    #[arg(long)]
+    default: bool,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub(crate) enum FileType {
+    PNG,
+    JPG,
+    WEBP,
+    GIF,
+    HEIC,
+}
+
+#[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub struct Pattern {
     #[arg(long, help = "download all images from all specified pages")]
@@ -70,7 +211,7 @@ pub struct Pattern {
     images_input: PathBuf, // --images-input /home/meep/img_names.txt
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 #[group(required = true, multiple = false)]
 pub struct Pages {
     #[arg(

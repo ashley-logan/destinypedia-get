@@ -1,43 +1,49 @@
+use super::schema::{categories, image_categories, images, subcategories};
 use destinypedia::NAMESPACE;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
+use diesel::prelude::Insertable;
 
 #[derive(Debug)]
-pub enum Row {
-    Images(ImagesRow),
-    Categories(CategoriesRow),
-    ImageCategory(ImageCategoryRow),
-    SubCategory(SubCategoryRow),
+pub enum Row<'a> {
+    Images(ImagesRow<'a>),
+    Categories(CategoriesRow<'a>),
+    ImageCategory(ImageCategoryRow<'a>),
+    SubCategory(SubCategoryRow<'a>),
 }
 
-#[derive(Debug)]
-pub struct ImagesRow {
-    pub id: u32,
-    pub title: String,
-    pub size: u32,
-    pub width: u32,
-    pub height: u32,
-    pub url: String,
-    pub timestamp: String,
+#[derive(Debug, Insertable)]
+#[diesel(table_name = images)]
+pub struct ImagesRow<'a> {
+    pub id: &'a u32,
+    pub title: &'a str,
+    pub size: &'a u32,
+    pub width: &'a u32,
+    pub height: &'a u32,
+    pub url: &'a str,
+    pub timestamp: &'a str,
     // category_titles: Vec<String>
 }
-#[derive(Debug)]
-pub struct CategoriesRow {
-    pub id: u32,
-    pub title: String,
-    pub files: u32,
-    pub subcats: u32,
+#[derive(Debug, Insertable)]
+#[diesel(table_name = categories)]
+pub struct CategoriesRow<'a> {
+    pub id: &'a u32,
+    pub title: &'a str,
+    pub files: &'a u32,
+    pub subcats: &'a u32,
 }
 
-#[derive(Debug)]
-pub struct ImageCategoryRow {
-    pub image_id: u32,
-    pub category_id: u32,
+#[derive(Debug, Insertable)]
+#[diesel(table_name = image_categories)]
+pub struct ImageCategoryRow<'a> {
+    pub image_id: &'a u32,
+    pub category_id: &'a u32,
 }
 
-#[derive(Debug)]
-pub struct SubCategoryRow {
-    pub id: u32,
-    pub subcategory_id: u32,
+#[derive(Debug, Insertable)]
+#[diesel(table_name = subcategories)]
+pub struct SubCategoryRow<'a> {
+    pub category_id: &'a u32,
+    pub subcategory_id: &'a u32,
 }
 
 impl From<(u32, u32)> for SubCategoryRow {

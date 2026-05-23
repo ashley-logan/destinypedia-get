@@ -35,16 +35,14 @@ async fn sync_destinypedia() -> Result<()> {
 
             todo!("turn map into cache payload")
         }
-        Err(e) {
+        Err(e) => {
             dbg!(e);
             if let Some(p) = backup {
-                fs::rename(backup, db)?;
+                fs::rename(p, db)?;
             }
             let _ = fs::remove_file(tmp);
         }
     }
-
-    
 
     Ok(())
 }
