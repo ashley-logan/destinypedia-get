@@ -1,7 +1,12 @@
 use super::rows::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
+use super::schema::{categories, image_categories, images, subcategories};
 use crossbeam_channel::{Receiver, unbounded};
+use diesel::dsl::insert_or_ignore_into as InsertStatement;
+use diesel::insert_or_ignore_into;
+use diesel::prelude::*;
+use diesel::sqlite::SqliteConnection;
 use dirs;
-use rusqlite::{Batch, Connection, Transaction};
+use rusqlite::{Batch, Transaction};
 use std::collections::HashMap;
 use std::env;
 use std::path::{Path, PathBuf};
@@ -21,17 +26,11 @@ DATABASE SCHEMA
 */
 
 pub fn write_row_subcategories(
-    conn: &Connection,
-    row: SubCategoryRow,
+    conn: &SqliteConnection,
+    row: SubCategoryRow<'_>,
 ) -> super::error::DatabaseResult<usize> {
-    let mut stmt = conn.prepare_cached(
-        r"
-        INSERT OR IGNORE INTO SUBCATEGORIES (category_id, subcategory_id)
-        VALUES (?1, ?2)",
-    )?;
-
-    stmt.execute((row.id, row.subcategory_id))
-        .map_err(|e| e.into())
+    use subcategories::dsl::*;
+    let mut stmt: InsertStatement<subcategories> = insert_or_ignore_into(subcategories).values(row);
 }
 
 pub fn write_row_image_categories(

@@ -34,7 +34,7 @@ pub(crate) fn get_categories_sync_params() -> RequestResult<PARAMS<Query>> {
     builder.build()
 }
 
-pub(crate) fn get_category_members_sync_params(pageid: u32) -> RequestResult<PARAMS<Query>> {
+pub(crate) fn get_category_members_sync_params(pageid: i32) -> RequestResult<PARAMS<Query>> {
     let builder: ParamsBuilder<Query> = ParamsBuilder::new()
         .with_generator(Generator::categorymembers_with(
             GcmIdentifier::GcmPageid(pageid),

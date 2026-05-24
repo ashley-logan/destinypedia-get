@@ -1,67 +1,59 @@
 use super::schema::{categories, image_categories, images, subcategories};
-use destinypedia::NAMESPACE;
+use crate::Result;
+use crate::bin_modules::DestinyFetchError;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
 use diesel::prelude::Insertable;
 
 #[derive(Debug)]
-pub enum Row<'a> {
-    Images(ImagesRow<'a>),
-    Categories(CategoriesRow<'a>),
-    ImageCategory(ImageCategoryRow<'a>),
-    SubCategory(SubCategoryRow<'a>),
+pub enum Row {
+    Images(ImagesRow),
+    Categories(CategoriesRow),
+    ImageCategory(ImageCategoryRow),
+    SubCategory(SubCategoryRow),
 }
 
 #[derive(Debug, Insertable)]
 #[diesel(table_name = images)]
-pub struct ImagesRow<'a> {
-    pub id: &'a u32,
-    pub title: &'a str,
-    pub size: &'a u32,
-    pub width: &'a u32,
-    pub height: &'a u32,
-    pub url: &'a str,
-    pub timestamp: &'a str,
-    // category_titles: Vec<String>
+pub struct ImagesRow {
+    pub id: i32,
+    pub title: String,
+    pub size: i32,
+    pub width: i32,
+    pub height: i32,
+    pub url: String,
+    pub timestamp: String,
 }
+
 #[derive(Debug, Insertable)]
 #[diesel(table_name = categories)]
-pub struct CategoriesRow<'a> {
-    pub id: &'a u32,
-    pub title: &'a str,
-    pub files: &'a u32,
-    pub subcats: &'a u32,
+pub struct CategoriesRow {
+    pub id: i32,
+    pub title: String,
+    pub files: i32,
+    pub subcats: i32,
 }
 
 #[derive(Debug, Insertable)]
 #[diesel(table_name = image_categories)]
-pub struct ImageCategoryRow<'a> {
-    pub image_id: &'a u32,
-    pub category_id: &'a u32,
+pub struct ImageCategoryRow {
+    pub image_id: i32,
+    pub category_id: i32,
 }
 
 #[derive(Debug, Insertable)]
 #[diesel(table_name = subcategories)]
-pub struct SubCategoryRow<'a> {
-    pub category_id: &'a u32,
-    pub subcategory_id: &'a u32,
-}
-
-impl From<(u32, u32)> for SubCategoryRow {
-    fn from(value: (u32, u32)) -> Self {
-        Self {
-            id: value.0,
-            subcategory_id: value.1,
-        }
-    }
+pub struct SubCategoryRow {
+    pub category_id: i32,
+    pub subcategory_id: i32,
 }
 
 impl TryFrom<QueryResult> for CategoriesRow {
-    type Error = crate::bin_modules::DestinyFetchError;
-    fn try_from(query: QueryResult) -> Result<Self, Self::Error> {
+    type Error = DestinyFetchError;
+    fn try_from(query: QueryResult) -> Result<Self> {
         match query.categoryinfo {
             Some(CategoryInfo(CategoryInfoItem {
-                files: Some(files_),
-                subcats: Some(subcats_),
+                files: Some(files),
+                subcats: Some(subcats),
                 ..
             })) => Ok(CategoriesRow {
                 id: query.pageid,
@@ -71,8 +63,8 @@ impl TryFrom<QueryResult> for CategoriesRow {
                         None => query.title,
                     }
                 },
-                files: files_,
-                subcats: subcats_,
+                files,
+                subcats,
             }),
             _ => Err(super::error::DatabaseError::IntoRowConvertError)?,
         }
@@ -80,8 +72,8 @@ impl TryFrom<QueryResult> for CategoriesRow {
 }
 
 impl TryFrom<QueryResult> for ImagesRow {
-    type Error = crate::bin_modules::DestinyFetchError;
-    fn try_from(query: QueryResult) -> Result<Self, Self::Error> {
+    type Error = DestinyFetchError;
+    fn try_from(query: QueryResult) -> Result<Self> {
         match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
             Some(Some(item)) => match item {
                 ImageInfoItem {

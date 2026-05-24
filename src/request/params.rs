@@ -161,7 +161,7 @@ impl ParamsBuilder<Query> {
     /// Chaining method for setting pageids
     /// Overwrites any pageids values with the provided collection
     /// Preferred for a builder-style interface
-    pub fn with_pageids(mut self, pageids_: impl IntoIterator<Item = impl Into<u32>>) -> Self {
+    pub fn with_pageids(mut self, pageids_: impl IntoIterator<Item = impl Into<i32>>) -> Self {
         self.params.pageids = Some(pageids_.into_iter().map(Into::into).collect());
 
         self
@@ -207,7 +207,7 @@ impl ParamsBuilder<Query> {
     /// Inplace method for adding pageids
     /// Appends the provided collection of pageids to self
     /// Can be used even when self.params.pageids is None
-    pub fn append_pageids(&mut self, pageids_: impl IntoIterator<Item = impl Into<u32>>) {
+    pub fn append_pageids(&mut self, pageids_: impl IntoIterator<Item = impl Into<i32>>) {
         self.params
             .pageids
             .get_or_insert_with(Vec::new)
@@ -256,9 +256,9 @@ impl ParamsBuilder<Query> {
     /// When the caller doesn't care about the previous value, prefer replacing with the 'append_pageids' method
     pub fn replace_or_remove_pageids(
         &mut self,
-        pageids_: Option<impl IntoIterator<Item = impl Into<u32>>>,
-    ) -> Option<Vec<u32>> {
-        let prev: Option<Vec<u32>> = self.params.pageids.take();
+        pageids_: Option<impl IntoIterator<Item = impl Into<i32>>>,
+    ) -> Option<Vec<i32>> {
+        let prev: Option<Vec<i32>> = self.params.pageids.take();
 
         if let Some(it) = pageids_ {
             self.params.pageids = Some(it.into_iter().map(Into::into).collect());
@@ -293,7 +293,7 @@ mod tests {
     #[test]
     fn test_chain_builder() {
         let params: PARAMS<Query> = PARAMS::build()
-            .with_pageids([300_u32, 400_u32, 500_u32])
+            .with_pageids([300_i32, 400_i32, 500_i32])
             .with_props([Prop::PageImages, Prop::Info])
             .with_format(Format::XmlFm)
             .build()

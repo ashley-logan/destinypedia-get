@@ -1,13 +1,13 @@
 use super::Result;
 use super::database::rows::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
-use super::database::write::create_tables;
+use crate::bin_modules::{DestinyFetchError, categories, image_categories, images, subcategories};
 use async_channel;
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, bounded, unbounded};
 use destinypedia::NAMESPACE;
 use destinypedia::request::{PARAMS, Query};
 use destinypedia::response::{Continue, QueryResponse};
+use diesel::{Connection, RunQueryDsl, SqliteConnection, insert_or_ignore_into};
 use reqwest::{Client, Response};
-use rusqlite::Connection;
 use serde_json::from_slice;
 use std::collections::HashMap;
 use std::fs;
@@ -17,7 +17,8 @@ use tokio::task;
 
 const USER_AGENT: &'static str = "DESTINY_FETCH";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
-const CATEGORY_IMAGES_ID: u32 = 364;
+const CATEGORY_IMAGES_ID: i32 = 364;
+static DEV_DB_URL: &str = "data/dev.db";
 
 pub fn create_backup(original: impl AsRef<path::Path>) -> Result<path::PathBuf> {
     let backup: path::PathBuf = original.as_ref().with_added_extension("bak");
@@ -27,16 +28,14 @@ pub fn create_backup(original: impl AsRef<path::Path>) -> Result<path::PathBuf> 
 
 pub async fn sync(
     database: impl AsRef<path::Path>,
-    starting_pageid: Option<u32>,
+    starting_pageid: Option<i32>,
 ) -> Result<HashMap<String, usize>> {
     let start_t = tokio::time::Instant::now();
 
-    let mut conn: Connection = Connection::open(&database)?;
+    let conn = SqliteConnection::establish(DEV_DB_URL)?;
 
-    create_tables(&mut conn)?;
-
-    let (pageid_send, pageid_recv) = async_channel::bounded::<u32>(500);
-    let (id_bytes_send, id_bytes_recv) = unbounded::<(u32, Vec<u8>)>();
+    let (pageid_send, pageid_recv) = async_channel::bounded::<i32>(500);
+    let (id_bytes_send, id_bytes_recv) = unbounded::<(i32, Vec<u8>)>();
     let (row_send, row_recv) = bounded::<Row>(500);
 
     pageid_send
@@ -88,8 +87,8 @@ pub async fn sync(
 /// once batch size is reached (or on final flush) writer bulk writes to the db
 pub(crate) async fn cm_request_worker(
     client: Arc<Client>,
-    recv: async_channel::Receiver<u32>,
-    send: Sender<(u32, Vec<u8>)>,
+    recv: async_channel::Receiver<i32>,
+    send: Sender<(i32, Vec<u8>)>,
 ) -> Result<()> {
     use tokio::time;
     loop {
@@ -140,8 +139,8 @@ pub(crate) async fn cm_request_worker(
 /// Breaks a single QueryResponse into ImageCategoryRows and SubCategoryRows and sends back any parsed category id's to the request worker
 fn process_response(
     resp_bytes: Vec<u8>,
-    resp_id: u32,
-    send_id: async_channel::Sender<u32>,
+    resp_id: i32,
+    send_id: async_channel::Sender<i32>,
     send_row: Sender<Row>,
 ) -> Result<()> {
     use rayon::prelude::*;
@@ -151,7 +150,7 @@ fn process_response(
             send_id.send_blocking(qr.pageid.clone()).unwrap();
             send_row
                 .send(Row::SubCategory(SubCategoryRow {
-                    id: resp_id,
+                    category_id: resp_id,
                     subcategory_id: qr.pageid,
                 }))
                 .expect("failed to send SubCategory row to writer");
@@ -199,8 +198,8 @@ fn process_response(
 ///
 /// The rows are then sent into the writer channel, see the dispatch_row_writer() function
 pub(crate) fn cm_response_worker(
-    recv: Receiver<(u32, Vec<u8>)>,
-    send: async_channel::Sender<u32>,
+    recv: Receiver<(i32, Vec<u8>)>,
+    send: async_channel::Sender<i32>,
     send_write: Sender<Row>,
 ) -> Result<()> {
     let timeout = tokio::time::Duration::from_secs(10);
@@ -221,13 +220,14 @@ pub(crate) fn cm_response_worker(
 }
 
 pub(crate) fn dispatch_row_writer(
-    mut conn: Connection,
+    mut conn: SqliteConnection,
     recv: Receiver<Row>,
     batch_size: usize,
 ) -> Result<HashMap<String, usize>> {
-    use super::database::write;
-    use rusqlite::Transaction;
-    use std::{thread::sleep, time::Duration};
+    use {
+        categories::dsl::categories, image_categories::dsl::image_categories, images::dsl::images,
+        subcategories::dsl::subcategories,
+    };
     // ---------------------
     // BEGIN SETUP
     // counters keep track of transaction information for caching
@@ -242,9 +242,13 @@ pub(crate) fn dispatch_row_writer(
         ("cat_count".into(), 0_usize),          // total rows inserted CATEGORIES table
         ("img_count".into(), 0_usize),          // total rows inserted IMAGES table
     ]);
+    let (mut sc_rows, mut ic_rows, mut cat_rows, mut img_rows) = (
+        Vec::<SubCategoryRow>::new(),
+        Vec::<ImageCategoryRow>::new(),
+        Vec::<CategoriesRow>::new(),
+        Vec::<ImagesRow>::new(),
+    );
 
-    let mut tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)
-        .expect("unable to open new transaction");
     //
     // END SETUP
     // ---------------------
@@ -256,51 +260,64 @@ pub(crate) fn dispatch_row_writer(
     // and initialize new transaction
     //
     while let Ok(row) = recv.recv() {
-        let rows_inserted = match row {
+        match row {
             Row::SubCategory(sc) => {
-                let n = write::write_row_subcategories(&conn, sc)?;
-                counters
-                    .entry("subcat_count".into())
-                    .and_modify(|i| *i += n);
-                n
+                sc_rows.push(sc);
             }
             Row::ImageCategory(ic) => {
-                let n = write::write_row_image_categories(&conn, ic)?;
-                counters
-                    .entry("imgcat_count".into())
-                    .and_modify(|i| *i += n);
-                n
+                ic_rows.push(ic);
             }
             Row::Categories(c) => {
-                let n = write::write_row_categories(&conn, c)?;
-                counters.entry("cat_count".into()).and_modify(|i| *i += n);
-                n
+                cat_rows.push(c);
             }
             Row::Images(i) => {
-                let n = write::write_row_images(&conn, i)?;
-                counters.entry("img_count".into()).and_modify(|i| *i += n);
-                n
+                img_rows.push(i);
             }
-        };
-        counters
-            .entry("insert_count".into())
-            .and_modify(|i| *i += rows_inserted);
-
-        // write to database when batch size is met
-        if counters["insert_count"] >= batch_size {
-            tx.commit()?;
-            tx = Transaction::new_unchecked(&conn, rusqlite::TransactionBehavior::Deferred)?;
-            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
-            dbg!(format!(
-                "BATCH #{} WRITTEN => {} ROWS INSERTED",
-                counters["batch_count"], counters["insert_count"]
-            ));
-
-            // update total insert count with transaction's insert count
-            *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
-            // reset insert count for this transaction to 0
-            counters.insert("insert_count".into(), 0);
         }
+
+        conn.transaction::<(), DestinyFetchError, _>(|conn| {
+            if sc_rows.len() >= batch_size {
+                insert_or_ignore_into(subcategories)
+                    .values(&sc_rows)
+                    .execute(conn)?;
+                counters
+                    .entry("subcat_count".into())
+                    .and_modify(|i| *i += sc_rows.len());
+                sc_rows.clear();
+                counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+            }
+            if ic_rows.len() >= batch_size {
+                insert_or_ignore_into(image_categories)
+                    .values(&ic_rows)
+                    .execute(conn)?;
+                counters
+                    .entry("imgcat_count".into())
+                    .and_modify(|i| *i += ic_rows.len());
+                ic_rows.clear();
+                counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+            }
+            if cat_rows.len() >= batch_size {
+                insert_or_ignore_into(categories)
+                    .values(&cat_rows)
+                    .execute(conn)?;
+                counters
+                    .entry("cat_count".into())
+                    .and_modify(|i| *i += cat_rows.len());
+                cat_rows.clear();
+                counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+            }
+            if img_rows.len() >= batch_size {
+                insert_or_ignore_into(images)
+                    .values(&img_rows)
+                    .execute(conn)?;
+                counters
+                    .entry("img_count".into())
+                    .and_modify(|i| *i += img_rows.len());
+                img_rows.clear();
+                counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+            }
+            Ok(())
+        })?;
     }
     //
     // END ROW INSERTION LOOP
@@ -309,43 +326,57 @@ pub(crate) fn dispatch_row_writer(
     // commit all rows remaining in the buffer
     // and update the transaction summary
     //
-    tx.commit()?;
-    counters.entry("batch_count".into()).and_modify(|i| *i += 1);
-    dbg!(format!(
-        "FINAL BATCH #{} WRITTEN => {} ROWS INSERTED",
-        counters["batch_count"], counters["insert_count"]
-    ));
-    *counters.get_mut("total_insert_count").unwrap() += counters["insert_count"];
-    counters.insert("insert_count".into(), 0);
-    dbg!(format!(
-        "WRITER COMPLETE\n\tTOTAL ROWS INSERTED => {}\n\tTOTAL BATCHES PROCESSED => {}",
-        counters["total_insert_count"], counters["batch_count"]
-    ));
-    //
-    // END FINAL TRANSACTION
-    // ---------------------
-    // BEGIN CONN SHUTDOWN LOOP
-    // after each failed attempt, wait 2 seconds before retrying close
-    // for a max of 5 attempts
-    //
-    conn.pragma_update(None, "wal_checkpoint", &"FULL")?;
-    let mut shutdown_attempts: u8 = 0;
-    while let Err((c, e)) = conn.close() {
-        match shutdown_attempts {
-            0..5 => {
-                sleep(Duration::from_millis(500));
-                shutdown_attempts += 1;
-                conn = c;
-            }
-            5.. => return Err(e)?,
+    conn.transaction::<(), DestinyFetchError, _>(|conn| {
+        if !sc_rows.is_empty() {
+            insert_or_ignore_into(subcategories)
+                .values(&sc_rows)
+                .execute(conn)?;
+            counters
+                .entry("subcat_count".into())
+                .and_modify(|i| *i += sc_rows.len());
+            sc_rows.clear();
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
         }
-    }
-    dbg!(format!(
-        "database connection successfully shutdown on attempt {shutdown_attempts}"
-    ));
-    //
-    //END CONN SHUTDOWN LOOP
-    // ---------------------
+        if !ic_rows.is_empty() {
+            insert_or_ignore_into(image_categories)
+                .values(&ic_rows)
+                .execute(conn)?;
+            counters
+                .entry("imgcat_count".into())
+                .and_modify(|i| *i += ic_rows.len());
+            ic_rows.clear();
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+        }
+        if !cat_rows.is_empty() {
+            insert_or_ignore_into(categories)
+                .values(&cat_rows)
+                .execute(conn)?;
+            counters
+                .entry("cat_count".into())
+                .and_modify(|i| *i += cat_rows.len());
+            cat_rows.clear();
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+        }
+        if !img_rows.is_empty() {
+            insert_or_ignore_into(images)
+                .values(&img_rows)
+                .execute(conn)?;
+            counters
+                .entry("img_count".into())
+                .and_modify(|i| *i += img_rows.len());
+            img_rows.clear();
+            counters.entry("batch_count".into()).and_modify(|i| *i += 1);
+        }
+        Ok(())
+    })?;
+    *counters
+        .get_mut("total_insert_count")
+        .unwrap_or(&mut 0_usize) += counters["subcat_count"]
+        + counters["cat_count"]
+        + counters["imgcat_count"]
+        + counters["img_count"];
+
+    dbg!(&counters);
     Ok(counters)
 }
 
@@ -357,9 +388,9 @@ mod tests {
     use std::fs;
     use std::{path::PathBuf, str::FromStr};
     use tokio::time;
-    const ROOT_ID: u32 = 364;
-    const ARMOR_CAT_ID: u32 = 33671;
-    const ROOT_MEMBERS: [u32; 5] = [363, 369, 31716, 375, 510];
+    const ROOT_ID: i32 = 364;
+    const ARMOR_CAT_ID: i32 = 33671;
+    const ROOT_MEMBERS: [i32; 5] = [363, 369, 31716, 375, 510];
 
     fn remove_dev_db() {
         let path = PathBuf::from_str("data/dev.db").unwrap();
@@ -382,8 +413,8 @@ mod tests {
     #[tokio::test]
     async fn test_request_worker() {
         let now = tokio::time::Instant::now();
-        let (send, recv) = async_channel::unbounded::<u32>();
-        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let (send, recv) = async_channel::unbounded::<i32>();
+        let (send2, recv2) = unbounded::<(i32, Vec<u8>)>();
         let client: Arc<Client> =
             Arc::new(Client::builder().user_agent(USER_AGENT).build().unwrap());
         let h = tokio::spawn(cm_request_worker(client, recv, send2));
@@ -408,8 +439,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_empty_request_worker() {
-        let (send, recv) = async_channel::unbounded::<u32>();
-        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let (send, recv) = async_channel::unbounded::<i32>();
+        let (send2, recv2) = unbounded::<(i32, Vec<u8>)>();
         let client: Arc<Client> =
             Arc::new(Client::builder().user_agent(USER_AGENT).build().unwrap());
         let h = tokio::spawn(cm_request_worker(client, recv, send2));
@@ -425,8 +456,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_high_traffic_req_worker() {
-        let (send, recv) = async_channel::unbounded::<u32>();
-        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let (send, recv) = async_channel::unbounded::<i32>();
+        let (send2, recv2) = unbounded::<(i32, Vec<u8>)>();
         for id in 0..500 {
             send.send(id).await.unwrap();
         }
@@ -459,8 +490,8 @@ mod tests {
     #[tokio::test]
     async fn test_process_and_write() {
         remove_dev_db();
-        let (send_, recv_) = unbounded::<(u32, Vec<u8>)>();
-        let (send_id, recv_id) = async_channel::unbounded::<u32>();
+        let (send_, recv_) = unbounded::<(i32, Vec<u8>)>();
+        let (send_id, recv_id) = async_channel::unbounded::<i32>();
         let (send_row, recv_row) = unbounded::<Row>();
 
         let root_params: PARAMS<Query> = get::get_category_members_sync_params(ROOT_ID).unwrap();
@@ -475,9 +506,7 @@ mod tests {
             .unwrap()
             .to_vec();
 
-        let mut conn = Connection::open("data/dev.db").unwrap();
-
-        create_tables(&mut conn).unwrap();
+        let mut conn = SqliteConnection::establish("data/dev.db").unwrap();
 
         let handle = std::thread::spawn(move || dispatch_row_writer(conn, recv_row, 100));
 
@@ -499,8 +528,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_nested_request_worker() {
-        let (send, recv) = async_channel::unbounded::<u32>();
-        let (send2, recv2) = unbounded::<(u32, Vec<u8>)>();
+        let (send, recv) = async_channel::unbounded::<i32>();
+        let (send2, recv2) = unbounded::<(i32, Vec<u8>)>();
         let (send_row, recv_row) = unbounded::<Row>();
         send.send(ARMOR_CAT_ID).await.unwrap();
         let mut jset: tokio::task::JoinSet<Result<()>> = tokio::task::JoinSet::new();

@@ -7,7 +7,7 @@ use std::collections::HashMap;
 #[serde(from = "QueryResponseHelper")]
 pub struct QueryResponse {
     pub continue_: Option<Continue>,
-    pub pageids: Option<Vec<u32>>,
+    pub pageids: Option<Vec<i32>>,
     pub results: Vec<QueryResult>,
 }
 
@@ -22,15 +22,9 @@ impl QueryResponse {
 
 impl From<QueryResponseHelper> for QueryResponse {
     fn from(helper: QueryResponseHelper) -> Self {
-        let pageids: Option<Vec<u32>> = match helper.query.pageids {
-            // only collect valid pageids (id >= 0)
-            Some(v) => Some(v.into_iter().filter_map(|i| i.try_into().ok()).collect()),
-            _ => None,
-        };
-
         QueryResponse {
             continue_: helper.continue_,
-            pageids,
+            pageids: helper.query.pageids,
             results: helper
                 .query
                 .pages
@@ -43,7 +37,7 @@ impl From<QueryResponseHelper> for QueryResponse {
 
 #[derive(Debug, PartialEq)]
 pub struct QueryResult {
-    pub pageid: u32,
+    pub pageid: i32,
     pub ns: NAMESPACE,
     pub title: String,
     pub categories: Option<Categories>,
@@ -59,9 +53,9 @@ impl TryFrom<QueryResultHelper> for QueryResult {
     fn try_from(helper: QueryResultHelper) -> Result<Self, Self::Error> {
         match helper {
             QueryResultHelper {
-                pageid: Some(pageid_),
-                ns: Some(ns_),
-                title: Some(title_),
+                pageid: Some(pageid),
+                ns: Some(ns),
+                title: Some(title),
                 categories,
                 categoryinfo,
                 images,
@@ -69,11 +63,9 @@ impl TryFrom<QueryResultHelper> for QueryResult {
                 pageimages,
                 info,
             } => Ok(QueryResult {
-                pageid: pageid_
-                    .try_into()
-                    .map_err(|_| super::error::ResponseError::ConvertPageid)?, // result is invalid if pageid < 0
-                ns: ns_,
-                title: title_,
+                pageid, // result is invalid if pageid < 0
+                ns,
+                title,
 
                 // empty property fields (determined by PropResult::empty) are deserialized as None
                 //
@@ -170,8 +162,6 @@ mod tests {
 
         let mut resp: QueryResponse = from_reader(rdr).unwrap();
         dbg!(&resp);
-
-        
     }
 
     #[test]

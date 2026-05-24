@@ -19,7 +19,7 @@ pub struct Query {
     #[serde_as(as = "Option<ListString>")]
     pub titles: Option<Vec<String>>,
     #[serde_as(as = "Option<ListString>")]
-    pub pageids: Option<Vec<u32>>,
+    pub pageids: Option<Vec<i32>>,
     #[serde_as(as = "Option<ListString>")]
     pub prop: Option<Vec<Prop>>,
     #[serde(flatten)]
@@ -89,8 +89,8 @@ pub enum Generator {
     },
     AllCategories {
         gacprefix: Option<String>,
-        gacmin: Option<u32>,
-        gacmax: Option<u32>,
+        gacmin: Option<i32>,
+        gacmax: Option<i32>,
         gaclimit: Limit,
     },
     CategoryMembers {
@@ -106,7 +106,7 @@ pub enum Generator {
 #[serde(rename_all = "lowercase")]
 pub enum GcmIdentifier {
     GcmTitle(String),
-    GcmPageid(u32),
+    GcmPageid(i32),
 }
 
 /// Enum that represents a value of any limit parameter
@@ -158,8 +158,8 @@ impl Generator {
 
     pub fn allcategories_with(
         gacprefix: Option<String>,
-        gacmin: Option<u32>,
-        gacmax: Option<u32>,
+        gacmin: Option<i32>,
+        gacmax: Option<i32>,
         gaclimit: Option<Limit>,
     ) -> Self {
         Generator::AllCategories {
