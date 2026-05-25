@@ -123,7 +123,7 @@ pub struct ImageInfoItem {
     pub width: Option<i32>,
     pub height: Option<i32>,
     pub url: Option<String>,
-    pub timestamp: Option<String>,
+    pub timestamp: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Item for ImageInfoItem {

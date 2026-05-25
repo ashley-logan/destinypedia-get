@@ -1,6 +1,20 @@
-use diesel::prelude::*;
-
 use super::schema::*;
+use diesel::prelude::*;
+use diesel::query_builder::SelectQuery;
+use diesel::sql_types::{Bool, Integer, Text};
+use diesel::sqlite::Sqlite;
+
+pub fn get_images(
+    search: &str,
+) -> Box<dyn BoxableExpression<images::table, Sqlite, SqlType = Bool>> {
+    use super::schema::images;
+    let pat = format!("%{}%", search);
+    Box::new(images::title.like(pat))
+}
+
+pub fn filter_images(expr: &mut Box<dyn BoxableExpression<images::table, Sqlite, SqlType = Bool>>) {
+    ()
+}
 
 #[derive(Queryable, Identifiable, Selectable, Debug, PartialEq)]
 #[diesel(table_name = images)]
@@ -11,7 +25,7 @@ pub struct Images {
     pub size: Option<u32>,
     pub width: Option<u32>,
     pub height: Option<u32>,
-    pub timestamp: Option<String>,
+    pub timestamp_: Option<chrono::NaiveDateTime>,
 }
 
 #[derive(Queryable, Identifiable, Selectable, Debug, PartialEq)]

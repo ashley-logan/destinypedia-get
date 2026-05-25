@@ -7,6 +7,7 @@ use destinypedia::NAMESPACE;
 use destinypedia::request::{PARAMS, Query};
 use destinypedia::response::{Continue, QueryResponse};
 use diesel::{Connection, RunQueryDsl, SqliteConnection, insert_or_ignore_into};
+use diesel_migrations::{EmbeddedMigrations, MigrationHarness, embed_migrations};
 use reqwest::{Client, Response};
 use serde_json::from_slice;
 use std::collections::HashMap;
@@ -15,10 +16,16 @@ use std::path;
 use std::sync::Arc;
 use tokio::task;
 
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!();
 const USER_AGENT: &'static str = "DESTINY_FETCH";
 const BASE: &'static str = "https://www.destinypedia.com/api.php";
 const CATEGORY_IMAGES_ID: i32 = 364;
 static DEV_DB_URL: &str = "data/dev.db";
+
+pub fn run_migrations(conn: &mut SqliteConnection) {
+    conn.run_pending_migrations(MIGRATIONS)
+        .expect("failed to run database migrations");
+}
 
 pub fn create_backup(original: impl AsRef<path::Path>) -> Result<path::PathBuf> {
     let backup: path::PathBuf = original.as_ref().with_added_extension("bak");
@@ -26,13 +33,11 @@ pub fn create_backup(original: impl AsRef<path::Path>) -> Result<path::PathBuf> 
     Ok(backup)
 }
 
-pub async fn sync(
-    database: impl AsRef<path::Path>,
-    starting_pageid: Option<i32>,
-) -> Result<HashMap<String, usize>> {
+pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<HashMap<String, usize>> {
     let start_t = tokio::time::Instant::now();
 
-    let conn = SqliteConnection::establish(DEV_DB_URL)?;
+    let mut conn = SqliteConnection::establish(db_url)?;
+    run_migrations(&mut conn);
 
     let (pageid_send, pageid_recv) = async_channel::bounded::<i32>(500);
     let (id_bytes_send, id_bytes_recv) = unbounded::<(i32, Vec<u8>)>();
@@ -235,7 +240,6 @@ pub(crate) fn dispatch_row_writer(
     //
     let mut counters: HashMap<String, usize> = HashMap::from_iter([
         ("batch_count".into(), 0_usize),        // total batches inserted
-        ("insert_count".into(), 0_usize),       // rows inserts in current transaction
         ("total_insert_count".into(), 0_usize), // total row inserts for entire sync
         ("subcat_count".into(), 0_usize),       // total rows inserted SUBCATEGORIES table
         ("imgcat_count".into(), 0_usize),       // total rows inserted IMAGE_CATEGORIES table
@@ -399,13 +403,17 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_migrations() {
+        let mut conn = SqliteConnection::establish("data/dev.db").unwrap();
+        run_migrations(&mut conn);
+    }
+
     #[tokio::test]
     async fn test_sync() {
         remove_dev_db();
 
-        let db = PathBuf::from_str("data/dev.db").unwrap();
-
-        let map = sync(db, None).await.unwrap();
+        let map = sync("data/dev.db", None).await.unwrap();
 
         dbg!(map);
     }

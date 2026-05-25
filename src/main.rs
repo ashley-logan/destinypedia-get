@@ -23,7 +23,7 @@ async fn sync_destinypedia() -> Result<()> {
         }
     };
 
-    let sync_result = sync::sync(&tmp, None).await;
+    let sync_result = sync::sync(&tmp.to_string_lossy(), None).await;
 
     match sync_result {
         Ok(map) => {

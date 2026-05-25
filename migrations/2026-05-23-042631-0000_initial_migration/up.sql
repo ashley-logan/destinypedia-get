@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS images (
     size INTEGER,
     width INTEGER,
     height INTEGER,
-    timestamp TEXT
+    timestamp_ TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS image_categories (

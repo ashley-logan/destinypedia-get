@@ -1,6 +1,7 @@
 use super::schema::{categories, image_categories, images, subcategories};
 use crate::Result;
 use crate::bin_modules::DestinyFetchError;
+use chrono::Utc;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
 use diesel::prelude::Insertable;
 
@@ -21,7 +22,7 @@ pub struct ImagesRow {
     pub width: i32,
     pub height: i32,
     pub url: String,
-    pub timestamp: String,
+    pub timestamp_: chrono::NaiveDateTime,
 }
 
 #[derive(Debug, Insertable)]
@@ -74,6 +75,7 @@ impl TryFrom<QueryResult> for CategoriesRow {
 impl TryFrom<QueryResult> for ImagesRow {
     type Error = DestinyFetchError;
     fn try_from(query: QueryResult) -> Result<Self> {
+        use chrono::prelude::*;
         match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
             Some(Some(item)) => match item {
                 ImageInfoItem {
@@ -95,7 +97,7 @@ impl TryFrom<QueryResult> for ImagesRow {
                     width,
                     height,
                     url,
-                    timestamp,
+                    timestamp_: timestamp.naive_utc(),
                 }),
 
                 _ => Err(super::error::DatabaseError::IntoRowConvertError)?,

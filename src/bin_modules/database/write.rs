@@ -1,7 +1,6 @@
 use super::rows::{CategoriesRow, ImageCategoryRow, ImagesRow, Row, SubCategoryRow};
 use super::schema::{categories, image_categories, images, subcategories};
 use crossbeam_channel::{Receiver, unbounded};
-use diesel::dsl::insert_or_ignore_into as InsertStatement;
 use diesel::insert_or_ignore_into;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -30,7 +29,7 @@ pub fn write_row_subcategories(
     row: SubCategoryRow<'_>,
 ) -> super::error::DatabaseResult<usize> {
     use subcategories::dsl::*;
-    let mut stmt: InsertStatement<subcategories> = insert_or_ignore_into(subcategories).values(row);
+    let mut stmt= insert_or_ignore_into(subcategories).values(row);
 }
 
 pub fn write_row_image_categories(

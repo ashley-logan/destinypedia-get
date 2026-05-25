@@ -26,6 +26,17 @@ pub enum DestinyFetchError {
     DatabaseErr,
     #[from(std::io::Error)]
     IOErr,
+    #[from(skip)]
+    #[display("no integer argument can be negative")]
+    NegativeArgErr,
+    #[from(skip)]
+    #[display("attempted to call categories/images method on incorrect result_type")]
+    WrongQueryMethod,
+    #[from(skip)]
+    #[display("invalid path; path does not exist")]
+    InvalidPathErr,
+    #[from(chrono::ParseError)]
+    InvalidTimestampErr,
 }
 
 pub type Result<T> = std::result::Result<T, DestinyFetchError>;
