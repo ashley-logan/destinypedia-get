@@ -4,7 +4,9 @@ pub mod database;
 pub mod get;
 pub mod sync;
 pub use cache::Cache;
+pub mod search;
 pub use database::schema::{categories, image_categories, images, subcategories};
+pub use database::tables::{Categories, ImageCategories, Images, Subcategories};
 
 #[derive(Debug, derive_more::Error, derive_more::From, derive_more::Display)]
 #[from(forward)]
@@ -18,13 +20,12 @@ pub enum DestinyFetchError {
     #[from(destinypedia::response::error::ResponseError)]
     ResponseErr,
     #[from(
-        rusqlite::Error,
         database::error::DatabaseError,
         diesel::ConnectionError,
         diesel::result::Error
     )]
     DatabaseErr,
-    #[from(std::io::Error)]
+    #[from(std::io::Error, csv::Error)]
     IOErr,
     #[from(skip)]
     #[display("no integer argument can be negative")]
@@ -37,6 +38,9 @@ pub enum DestinyFetchError {
     InvalidPathErr,
     #[from(chrono::ParseError)]
     InvalidTimestampErr,
+    #[from(skip)]
+    #[display("missing required argument")]
+    MissingArgErr,
 }
 
 pub type Result<T> = std::result::Result<T, DestinyFetchError>;

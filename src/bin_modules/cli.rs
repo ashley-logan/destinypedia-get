@@ -68,39 +68,39 @@ enum Command {
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
-    search: String,
+    pub search: String,
     #[command(flatten)]
-    result_type: ResultType, // filter by images, categories, or both
+    pub result_type: ResultType, // filter by images, categories, or both
     #[arg(long = "in-category", short = 'c')]
-    in_category: Option<String>, // only show results in this category
+    pub in_category: Option<String>, // only show results in this category
     #[arg(long, short = 'o')]
-    output: Option<PathBuf>, // --output [-o] batch1.json
+    pub output: Option<PathBuf>, // --output [-o] batch1.json
     #[arg(long, short = 'n')]
-    limit: Option<i32>, // show this many results; default all
+    pub limit: Option<i32>, // show this many results; default all
     #[command(flatten)]
-    detail_level: Option<DetailLevel>, // amount of extra information provided for each result
+    pub detail_level: Option<DetailLevel>, // amount of extra information provided for each result
     #[arg(long, value_enum)]
-    ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
+    pub ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
     #[arg(long)]
-    maxsize: Option<i32>,
+    pub maxsize: Option<i32>,
     #[arg(long)]
-    minsize: Option<i32>,
+    pub minsize: Option<i32>,
     #[arg(long, value_parser = parse_as_utc)]
-    before: Option<DateTime<Utc>>,
+    pub before: Option<DateTime<Utc>>,
     #[arg(long, value_parser = parse_as_utc)]
-    after: Option<DateTime<Utc>>,
+    pub after: Option<DateTime<Utc>>,
     #[arg(long)]
-    maxwidth: Option<i32>,
+    pub maxwidth: Option<i32>,
     #[arg(long)]
-    minwidth: Option<i32>,
+    pub minwidth: Option<i32>,
     #[arg(long)]
-    maxheight: Option<i32>,
+    pub maxheight: Option<i32>,
     #[arg(long)]
-    minheight: Option<i32>,
+    pub minheight: Option<i32>,
     #[arg(long)]
-    maxpixels: Option<i32>,
+    pub maxpixels: Option<i32>,
     #[arg(long)]
-    minpixels: Option<i32>,
+    pub minpixels: Option<i32>,
 }
 
 // authors::table
@@ -112,135 +112,6 @@ pub struct SearchArgs {
 //     .filter(books::title.eq("Momo"))
 //     .select((Page::as_select(), Book::as_select()))
 //     .load::<(Page, Book)>(conn)?;
-
-impl<'a> SearchArgs {
-    pub fn as_images_query(&'a self) -> Result<images::BoxedQuery<'a, diesel::sqlite::Sqlite>> {
-        use super::database::tables::{Categories, ImageCategories, Images};
-        match &self.result_type {
-            ResultType {
-                categories: true, ..
-            } => return Err(DestinyFetchError::WrongQueryMethod),
-            _ => (),
-        };
-        let mut q: images::BoxedQuery<'_, diesel::sqlite::Sqlite> = images::table.into_boxed();
-        // filter by contains <SEARCH> as a substring
-        q.filter(images::title.like(&self.search));
-
-        if let Some(v) = &self.ftype {
-            let mut s: std::vec::IntoIter<String> = as_string_vec(v).into_iter();
-
-            let mut pat = format!("%{}", s.next().unwrap_or_default());
-            q.filter(images::title.like(&pat));
-
-            for ext in s {
-                pat = format!("%{}", &ext);
-                q.or_filter(images::title.like(&pat));
-            }
-        }
-
-        match &self.maxsize {
-            Some(i) if *i >= 0 => {
-                q.filter(images::size.le(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.minsize {
-            Some(i) if *i >= 0 => {
-                q.filter(images::size.ge(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.maxwidth {
-            Some(i) if *i >= 0 => {
-                q.filter(images::width.le(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.minwidth {
-            Some(i) if *i >= 0 => {
-                q.filter(images::width.ge(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.maxheight {
-            Some(i) if *i >= 0 => {
-                q.filter(images::height.le(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.minheight {
-            Some(i) if *i >= 0 => {
-                q.filter(images::height.ge(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.maxpixels {
-            Some(i) if *i >= 0 => {
-                q.filter(images::width.mul(images::height).le(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.minpixels {
-            Some(i) if *i >= 0 => {
-                q.filter(images::width.mul(images::height).ge(*i));
-            }
-            Some(n) => {
-                return Err(DestinyFetchError::NegativeArgErr);
-            }
-            _ => (),
-        };
-
-        match &self.before {
-            Some(dt) => {
-                q.filter(images::timestamp_.lt(dt.naive_utc()));
-            }
-            _ => (),
-        };
-
-        match &self.after {
-            Some(dt) => {
-                q.filter(images::timestamp_.gt(dt.naive_utc()));
-            }
-            _ => (),
-        };
-
-        if let Some(cat) = &self.in_category {
-            q.inner_join(image_categories::table)
-                .inner_join(categories::table.on(image_categories::category_id.eq(categories::id)))
-                .filter(categories::title.is(cat));
-        }
-
-        None
-    }
-}
 
 #[derive(Debug, Args)]
 pub struct DownloadArgs {
@@ -348,23 +219,6 @@ pub(crate) enum FileType {
     GIF,
     HEIC,
     SVG,
-}
-
-fn as_string_vec(ftypes: &Vec<FileType>) -> Vec<String> {
-    let mut v: Vec<String> = vec![];
-
-    for f in ftypes {
-        match f {
-            FileType::PNG => v.push(".png".into()),
-            FileType::JPG => v.extend_from_slice(&[".jpg".into(), ".jpeg".into()]),
-            FileType::HEIC => v.push(".heic".into()),
-            FileType::WEBP => v.push(".webp".into()),
-            FileType::GIF => v.push(".gif".into()),
-            FileType::SVG => v.push(".svg".into()),
-        };
-    }
-
-    v
 }
 
 #[derive(Debug, Args)]

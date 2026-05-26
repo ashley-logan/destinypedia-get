@@ -1,6 +1,6 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS images (
-    id INTEGER PRIMARY KEY,
+    id INTEGER NOT NULL PRIMARY KEY,
     title TEXT NOT NULL,
     url TEXT NOT NULL,
     size INTEGER,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS image_categories (
 );
 
 CREATE TABLE IF NOT EXISTS categories (
-    id INTEGER PRIMARY KEY,
+    id INTEGER NOT NULL PRIMARY KEY,
     title TEXT NOT NULL,
     subcats INTEGER,
     files INTEGER

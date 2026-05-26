@@ -2,7 +2,7 @@
 
 diesel::table! {
     categories (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         title -> Text,
         subcats -> Nullable<Integer>,
         files -> Nullable<Integer>,
@@ -18,7 +18,7 @@ diesel::table! {
 
 diesel::table! {
     images (id) {
-        id -> Nullable<Integer>,
+        id -> Integer,
         title -> Text,
         url -> Text,
         size -> Nullable<Integer>,
