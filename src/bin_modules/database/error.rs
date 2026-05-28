@@ -2,7 +2,7 @@ use derive_more::{Display, Error, From};
 
 #[derive(Debug, Error, From, Display)]
 pub enum DatabaseError {
-    ConnectionError(diesel::ConnectionError),
+    ConnectionError(sqlx::Error),
     #[display("Error converting response::Item type into database::Row type")]
     IntoRowConvertError,
 }

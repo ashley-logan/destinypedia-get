@@ -1,11 +1,9 @@
 use super::{DestinyFetchError, Result};
-use super::{categories, image_categories, images, subcategories};
 use chrono::{DateTime, Utc};
 use clap::{
     Args, Parser, Subcommand, ValueEnum,
     builder::{PathBufValueParser, TypedValueParser},
 };
-use diesel::prelude::*;
 use std::{ops::Mul, path::PathBuf};
 
 // helper function for path directory validation
@@ -31,10 +29,11 @@ fn parse_as_utc(s: &str) -> Result<DateTime<Utc>> {
         Ok(t3.into())
     } else if let Ok(t2) = DateTime::parse_from_rfc2822(s) {
         Ok(t2.into())
-    } else if let Ok(t) = DateTime::parse_from_str(s, "%Y-%m-%d") {
-        Ok(t.into())
     } else {
-        Err(DestinyFetchError::InvalidTimestampErr)
+        match DateTime::parse_from_str(s, "%Y-%m-%d") {
+            Ok(t1) => Ok(t1.into()),
+            Err(e) => Err(e)?,
+        }
     }
 }
 

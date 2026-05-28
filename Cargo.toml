@@ -13,13 +13,12 @@ path = "src/main.rs"
 
 [dependencies]
 async-channel = "2.5.0"
+better-tracing = "0.6.0"
 chrono = { version = "0.4.44", features = ["serde"] }
 clap = { version = "4.6.1", features = ["unstable-doc", "cargo", "derive"] }
 crossbeam-channel = "0.5.15"
 csv = "1.4.0"
 derive_more = { version = "2.1.1", features = ["display", "error", "from", "try_from"] }
-diesel = { version = "2.3.9", features = ["sqlite", "returning_clauses_for_sqlite_3_35", "chrono"] }
-diesel_migrations = { version = "2.3.2", features = ["sqlite"] }
 dirs = "6.0.0"
 dotenvy = "0.15.7"
 rayon = "1.12.0"
@@ -28,8 +27,10 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_with = { version = "3.19.0", features = ["guide"] }
 serde_with_macros = "3.19.0"
+sqlx = { version = "0.9.0", features = ["sqlite", "chrono", "derive", "macros", "migrate", "runtime-tokio"] }
 thiserror = "2.0.18"
 tokio = { version = "1.52.1", features = ["rt", "macros", "full", "time"] }
+tracing = "0.1.44"
 
 [dev-dependencies]
 tempfile = "3.27.0"

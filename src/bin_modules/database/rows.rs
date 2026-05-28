@@ -1,9 +1,9 @@
-use super::schema::{categories, image_categories, images, subcategories};
+// use super::schema::{categories, image_categories, images, subcategories};
 use crate::Result;
 use crate::bin_modules::DestinyFetchError;
 use chrono::Utc;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
-use diesel::prelude::Insertable;
+use sqlx::{FromRow, sqlite::Sqlite};
 
 #[derive(Debug)]
 pub enum Row {
@@ -13,8 +13,7 @@ pub enum Row {
     SubCategory(SubCategoryRow),
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = images)]
+#[derive(Debug, FromRow)]
 pub struct ImagesRow {
     pub id: i32,
     pub title: String,
@@ -25,8 +24,19 @@ pub struct ImagesRow {
     pub timestamp_: chrono::NaiveDateTime,
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = categories)]
+impl ImagesRow {
+    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
+        b.push_bind(self.id);
+        b.push_bind(self.title);
+        b.push_bind(self.url);
+        b.push_bind(self.size);
+        b.push_bind(self.width);
+        b.push_bind(self.height);
+        b.push_bind(self.timestamp_.and_utc().timestamp());
+    }
+}
+
+#[derive(Debug, FromRow)]
 pub struct CategoriesRow {
     pub id: i32,
     pub title: String,
@@ -34,18 +44,39 @@ pub struct CategoriesRow {
     pub subcats: i32,
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = image_categories)]
+impl CategoriesRow {
+    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
+        b.push_bind(self.id);
+        b.push_bind(self.title);
+        b.push_bind(self.subcats);
+        b.push_bind(self.files);
+    }
+}
+
+#[derive(Debug, FromRow)]
 pub struct ImageCategoryRow {
     pub image_id: i32,
     pub category_id: i32,
 }
 
-#[derive(Debug, Insertable)]
-#[diesel(table_name = subcategories)]
+impl ImageCategoryRow {
+    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
+        b.push_bind(self.image_id);
+        b.push_bind(self.category_id);
+    }
+}
+
+#[derive(Debug, FromRow)]
 pub struct SubCategoryRow {
     pub category_id: i32,
     pub subcategory_id: i32,
+}
+
+impl SubCategoryRow {
+    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
+        b.push_bind(self.category_id);
+        b.push_bind(self.subcategory_id);
+    }
 }
 
 impl TryFrom<QueryResult> for CategoriesRow {

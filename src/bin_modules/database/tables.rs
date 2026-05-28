@@ -3,7 +3,7 @@ use diesel::prelude::*;
 use diesel::sqlite::Sqlite;
 use serde::Serialize;
 
-#[derive(Serialize, Queryable, Identifiable, Selectable, Debug, PartialEq)]
+#[derive(Serialize, Debug, PartialEq)]
 #[diesel(check_for_backend(Sqlite))]
 #[diesel(table_name = images)]
 pub struct Images {
