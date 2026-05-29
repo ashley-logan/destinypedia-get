@@ -51,8 +51,8 @@ pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<()> {
         .foreign_keys(false)
         .create_if_missing(true)
         .filename(db_url);
-    let pool = SqlitePoolOptions::new().connect_lazy_with(opts);
-    tracing::debug!("lazy connection pool created");
+    let pool = SqlitePoolOptions::new().connect_with(opts).await?;
+    tracing::debug!("connection pool created");
 
     run_migrations(&pool).await?;
 
@@ -118,7 +118,7 @@ pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<()> {
     drop(row_send);
     tracing::trace!("extraneous reponse task reciever1, reciever2, and sender dropped");
 
-    _writer_task.await??;
+    let rows_written: u64 = _writer_task.await??;
 
     let mut all_successful: bool = true;
     loop {
@@ -145,8 +145,9 @@ pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<()> {
     }
     tracing::info!(
         SYNC_SUCCESS = all_successful,
-        "FINISHED SYNCING DATABASE IN {}s",
-        start_t.elapsed().as_secs_f32()
+        "FINISHED SYNCING DATABASE IN {}s\nTOTAL ROWS WRITTEN{}",
+        start_t.elapsed().as_secs_f32(),
+        rows_written
     );
 
     Ok(())
@@ -172,8 +173,7 @@ async fn request_worker(
         match time::timeout(time::Duration::from_secs(5), recv.recv()).await {
             Ok(Ok(id)) => {
                 let mut params: PARAMS<Query> =
-                    super::get::get_category_members_sync_params(id.clone())
-                        .expect("get_category_members_sync_params failed");
+                    super::get::get_category_members_sync_params(id.clone())?;
                 let mut more_results: bool = true;
 
                 while more_results {
@@ -202,10 +202,12 @@ async fn request_worker(
                         }
                     }
 
-                    send.try_send((id, b)).unwrap(); // send owned bytes into producer-consumer channel
+                    send.send((id, b))
+                        .expect("failed to send pageid and bytes into deserialize worker"); // send owned bytes into producer-consumer channel
                 }
             }
-            Err(_) | Ok(Err(_)) => break,
+            Err(_e) => break,
+            Ok(Err(e)) => return Err(e)?,
         }
     }
     drop(send);
@@ -284,10 +286,10 @@ fn deserialize_worker(
         match recv.recv_timeout(timeout) {
             Ok((id, bytes)) => {
                 let (send_id, send_row) = (send.clone(), send_write.clone());
-                process_response(bytes, id, send_id, send_row).unwrap();
+                process_response(bytes, id, send_id, send_row)?;
             }
             Err(RecvTimeoutError::Disconnected) => break,
-            Err(RecvTimeoutError::Timeout) => panic!("response worker timed out"),
+            Err(e) => return Err(e)?,
         }
     }
     drop(recv); // just because this branch needs pruned, doesn't mean there aren't more responses to process
@@ -300,30 +302,17 @@ async fn write_worker(
     pool: SqlitePool,
     recv: async_channel::Receiver<Row>,
     batch_size: usize,
-) -> Result<()> {
+) -> Result<u64> {
     // ---------------------
     // BEGIN SETUP
     // counters keep track of transaction information for caching
     // tx begins intial transaction
     //
-    let (mut subcat_rows, mut imgcat_rows, mut cat_rows, mut img_rows) = (
-        Vec::<SubCategoryRow>::new(),
-        Vec::<ImageCategoryRow>::new(),
-        Vec::<CategoriesRow>::new(),
-        Vec::<ImagesRow>::new(),
-    );
-
-    let mut img_q: QueryBuilder<Sqlite> = QueryBuilder::new(
-        "INSERT OR IGNORE INTO  images(id, title, url_, size_, width, height, timestamp_) ",
-    );
-    let mut cat_q: QueryBuilder<Sqlite> =
-        QueryBuilder::new("INSERT OR IGNORE INTO categories(id, title, subcats, files) ");
-    let mut imgcat_q: QueryBuilder<Sqlite> =
-        QueryBuilder::new("INSERT OR IGNORE INTO image_categories(image_id, category_id) ");
-    let mut subcat_q: QueryBuilder<Sqlite> =
-        QueryBuilder::new("INSERT OR IGNORE INTO subcategories(parent_id, child_id) ");
-
+    let span = tracing::info_span!("WITHIN WRITE WORKER");
+    let _guard = span.enter();
+    let mut total_insert_count: u64 = 0;
     let mut tx = pool.begin().await?;
+    let mut insert_count: u64 = 0;
 
     //
     // END SETUP
@@ -336,55 +325,83 @@ async fn write_worker(
     // and initialize new transaction
     //
     while let Ok(row) = recv.recv().await {
-        match row {
-            Row::Images(img) => {
-                img_rows.push(img);
-            }
-            Row::Categories(cat) => {
-                cat_rows.push(cat);
-            }
-            Row::ImageCategory(icat) => {
-                imgcat_rows.push(icat);
-            }
-            Row::SubCategory(scat) => {
-                subcat_rows.push(scat);
-            }
-        }
-        if img_rows.len() >= batch_size {
-            img_q.reset();
-            let q = img_q
-                .push_values(img_rows.into_iter(), |mut b, img| img.into_bind_values(b))
-                .build();
-            q.execute(&mut *tx).await?;
-            img_rows = vec![];
-        }
-        if cat_rows.len() >= batch_size {
-            cat_q.reset();
-            let q = cat_q
-                .push_values(cat_rows.into_iter(), |mut b, cat| cat.into_bind_values(b))
-                .build();
-            q.execute(&mut *tx).await?;
-            cat_rows = vec![];
-        }
-        if imgcat_rows.len() >= batch_size {
-            img_q.reset();
-            let q = imgcat_q
-                .push_values(imgcat_rows.into_iter(), |mut b, icat| {
-                    icat.into_bind_values(b)
-                })
-                .build();
-            q.execute(&mut *tx).await?;
-            imgcat_rows = vec![];
-        }
-        if subcat_rows.len() >= batch_size {
-            subcat_q.reset();
-            let q = subcat_q
-                .push_values(subcat_rows.into_iter(), |mut b, cat| {
-                    cat.into_bind_values(b)
-                })
-                .build();
-            q.execute(&mut *tx).await?;
-            subcat_rows = vec![];
+        insert_count += match row {
+            Row::Images(ImagesRow {
+                id,
+                title,
+                size,
+                width,
+                height,
+                url,
+                timestamp_,
+                ext_,
+            }) => query!(
+                r#"INSERT OR IGNORE INTO images 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
+                id,
+                title,
+                url,
+                size,
+                width,
+                height,
+                timestamp_.and_utc().timestamp(),
+                ext_
+            )
+            .persistent(true)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected(),
+            Row::Categories(CategoriesRow {
+                id,
+                title,
+                files,
+                subcats,
+            }) => query!(
+                r#"INSERT OR IGNORE INTO categories 
+                    VALUES (?, ?, ?, ?)"#,
+                id,
+                title,
+                subcats,
+                files
+            )
+            .persistent(true)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected(),
+            Row::ImageCategory(ImageCategoryRow {
+                image_id,
+                category_id,
+            }) => query!(
+                r#"INSERT OR IGNORE INTO image_categories 
+                    VALUES (?, ?)"#,
+                image_id,
+                category_id
+            )
+            .persistent(true)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected(),
+            Row::SubCategory(SubCategoryRow {
+                category_id,
+                subcategory_id,
+            }) => query!(
+                r#"INSERT OR IGNORE INTO subcategories 
+                    VALUES (?, ?)"#,
+                category_id,
+                subcategory_id
+            )
+            .persistent(true)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected(),
+        };
+
+        if insert_count >= batch_size as u64 {
+            tx.commit().await?;
+            tracing::info!("COMMITED TRANSACTION; {} ROWS INSERTED", insert_count);
+            total_insert_count += insert_count;
+            insert_count = 0;
+            tx = pool.begin().await?;
         }
     }
     //
@@ -394,42 +411,18 @@ async fn write_worker(
     // commit all rows remaining in the buffer
     // and update the transaction summary
     //
-    if !img_rows.is_empty() {
-        img_q.reset();
-        let q = img_q
-            .push_values(img_rows.into_iter(), |mut b, img| img.into_bind_values(b))
-            .build();
-        q.execute(&mut *tx).await?;
-    }
-    if !cat_rows.is_empty() {
-        cat_q.reset();
-        let q = cat_q
-            .push_values(cat_rows.into_iter(), |mut b, cat| cat.into_bind_values(b))
-            .build();
-        q.execute(&mut *tx).await?;
-    }
-    if !imgcat_rows.is_empty() {
-        img_q.reset();
-        let q = imgcat_q
-            .push_values(imgcat_rows.into_iter(), |mut b, cat| {
-                cat.into_bind_values(b)
-            })
-            .build();
-        q.execute(&mut *tx).await?;
-    }
-
-    if !subcat_rows.is_empty() {
-        subcat_q.reset();
-        let q = subcat_q
-            .push_values(subcat_rows.into_iter(), |mut b, cat| {
-                cat.into_bind_values(b)
-            })
-            .build();
-        q.execute(&mut *tx).await?;
+    if insert_count > 0 {
+        tracing::info!("COMMITED TRANSACTION; {} ROWS INSERTED", insert_count);
+        total_insert_count += insert_count;
     }
 
     tx.commit().await?;
-    Ok(())
+    tracing::info!(
+        "WRITER COMPLETE; {} TOTAL ROWS INSERTED",
+        total_insert_count
+    );
+    drop(recv);
+    Ok(total_insert_count)
 }
 
 #[cfg(test)]

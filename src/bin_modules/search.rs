@@ -1,11 +1,24 @@
 use crate::bin_modules::cli::{DetailLevel, FileType, ResultType, SearchArgs};
 
+use crate::bin_modules::database::rows::ImagesRow;
 use crate::{DestinyFetchError, Result};
 use csv::Writer;
 use sqlx::SqlitePool;
+use sqlx::{QueryBuilder, sqlite::Sqlite};
 use std::ops::Mul;
 use std::path::{Path, PathBuf};
 
+pub async fn search_images(args: &SearchArgs, pool: &SqlitePool) -> Result<Vec<ImagesRow>> {
+    let mut q: QueryBuilder<Sqlite> = match &args.detail_level {
+        Some(DetailLevel { simple: true, .. }) => QueryBuilder::new("SELECT title FROM images "),
+        Some(DetailLevel { detailed: true, .. }) => QueryBuilder::new("SELECT * FROM images "),
+        _ => QueryBuilder::new("SELECT title, size_, width, height FROM images "),
+    };
+    q.push("WHERE title LIKE ");
+    q.push_bind(format!("%{}% ", &args.search));
+
+    Ok(vec![])
+}
 // pub fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
 //     let (imgs, cats) = match args.result_type {
 //         ResultType { all: true, .. } => (

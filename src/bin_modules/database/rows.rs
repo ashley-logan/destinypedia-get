@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 // use super::schema::{categories, image_categories, images, subcategories};
 use crate::Result;
 use crate::bin_modules::DestinyFetchError;
@@ -13,7 +15,38 @@ pub enum Row {
     SubCategory(SubCategoryRow),
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, clap::ValueEnum, sqlx::Type)]
+pub enum Ext {
+    PNG,
+    JPG,
+    SVG,
+    GIF,
+    MP4,
+    MP3,
+    WEBP,
+}
+
+impl Ext {
+    pub fn as_ext(value: impl AsRef<str>) -> Option<Self> {
+        let s = value.as_ref();
+        if let Some(i) = s.rfind('.') {
+            match &s.to_lowercase()[i..] {
+                ".png" => Some(Self::PNG),
+                ".jpg" | ".jpeg" => Some(Self::JPG),
+                ".svg" => Some(Self::SVG),
+                ".gif" => Some(Self::SVG),
+                ".mp4" => Some(Self::MP4),
+                ".mp3" => Some(Self::MP3),
+                ".webp" => Some(Self::WEBP),
+                _ => None,
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug)]
 pub struct ImagesRow {
     pub id: i32,
     pub title: String,
@@ -22,21 +55,10 @@ pub struct ImagesRow {
     pub height: i32,
     pub url: String,
     pub timestamp_: chrono::NaiveDateTime,
+    pub ext_: Option<Ext>,
 }
 
-impl ImagesRow {
-    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
-        b.push_bind(self.id);
-        b.push_bind(self.title);
-        b.push_bind(self.url);
-        b.push_bind(self.size);
-        b.push_bind(self.width);
-        b.push_bind(self.height);
-        b.push_bind(self.timestamp_.and_utc().timestamp());
-    }
-}
-
-#[derive(Debug, FromRow)]
+#[derive(Debug)]
 pub struct CategoriesRow {
     pub id: i32,
     pub title: String,
@@ -44,39 +66,16 @@ pub struct CategoriesRow {
     pub subcats: i32,
 }
 
-impl CategoriesRow {
-    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
-        b.push_bind(self.id);
-        b.push_bind(self.title);
-        b.push_bind(self.subcats);
-        b.push_bind(self.files);
-    }
-}
-
-#[derive(Debug, FromRow)]
+#[derive(Debug)]
 pub struct ImageCategoryRow {
     pub image_id: i32,
     pub category_id: i32,
 }
 
-impl ImageCategoryRow {
-    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
-        b.push_bind(self.image_id);
-        b.push_bind(self.category_id);
-    }
-}
-
-#[derive(Debug, FromRow)]
+#[derive(Debug)]
 pub struct SubCategoryRow {
     pub category_id: i32,
     pub subcategory_id: i32,
-}
-
-impl SubCategoryRow {
-    pub fn into_bind_values(self, mut b: sqlx::query_builder::Separated<'_, Sqlite, &'static str>) {
-        b.push_bind(self.category_id);
-        b.push_bind(self.subcategory_id);
-    }
 }
 
 impl TryFrom<QueryResult> for CategoriesRow {
@@ -118,6 +117,7 @@ impl TryFrom<QueryResult> for ImagesRow {
                     timestamp: Some(timestamp),
                 } => Ok(ImagesRow {
                     id: query.pageid,
+                    ext_: Ext::as_ext(&title_),
                     title: {
                         match title_.strip_prefix(r"File:") {
                             Some(s) => s.into(),

@@ -1,4 +1,5 @@
 use super::{DestinyFetchError, Result};
+use crate::bin_modules::database::rows::Ext;
 use chrono::{DateTime, Utc};
 use clap::{
     Args, Parser, Subcommand, ValueEnum,
@@ -79,7 +80,7 @@ pub struct SearchArgs {
     #[command(flatten)]
     pub detail_level: Option<DetailLevel>, // amount of extra information provided for each result
     #[arg(long, value_enum)]
-    pub ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
+    pub ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
     #[arg(long)]
     pub maxsize: Option<i32>,
     #[arg(long)]
@@ -141,7 +142,7 @@ pub(crate) enum Commands {
         #[command(flatten)]
         detail_level: Option<DetailLevel>, // amount of extra information provided for each result
         #[arg(long, value_enum)]
-        ftype: Option<Vec<FileType>>, // only show images with these filetypes, default all
+        ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
         #[arg(long)]
         maxsize: Option<i32>,
         #[arg(long)]
@@ -199,25 +200,15 @@ pub struct ResultType {
 pub(crate) struct DetailLevel {
     /// return image results only
     #[arg(long, short = 'd')]
-    detailed: bool,
+    pub detailed: bool,
 
     /// return category results only
     #[arg(long, short = 's')]
-    simple: bool,
+    pub simple: bool,
 
     /// returns both category and image results
     #[arg(long)]
-    default: bool,
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-pub(crate) enum FileType {
-    PNG,
-    JPG,
-    WEBP,
-    GIF,
-    HEIC,
-    SVG,
+    pub default: bool,
 }
 
 #[derive(Debug, Args)]

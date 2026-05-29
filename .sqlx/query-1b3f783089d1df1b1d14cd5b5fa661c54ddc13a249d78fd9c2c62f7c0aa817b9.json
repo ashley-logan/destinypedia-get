@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO subcategories \n                    VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1b3f783089d1df1b1d14cd5b5fa661c54ddc13a249d78fd9c2c62f7c0aa817b9"
+}

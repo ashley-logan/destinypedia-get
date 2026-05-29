@@ -26,6 +26,10 @@ pub enum DestinyFetchError {
     #[from]
     SqlxErr(#[from] sqlx::Error),
     #[from]
+    RecvTimeoutErr(#[from] crossbeam_channel::RecvTimeoutError),
+    #[from]
+    AsyncRecvErr(#[from] async_channel::RecvError),
+    #[from]
     RowError(#[from] super::database::error::DatabaseError),
     #[from(std::io::Error, csv::Error)]
     IOErr,
