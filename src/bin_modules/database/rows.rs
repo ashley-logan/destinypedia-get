@@ -46,7 +46,7 @@ impl Ext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct ImagesRow {
     pub id: i32,
     pub title: String,
@@ -58,7 +58,7 @@ pub struct ImagesRow {
     pub ext_: Option<Ext>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct CategoriesRow {
     pub id: i32,
     pub title: String,
@@ -66,13 +66,13 @@ pub struct CategoriesRow {
     pub subcats: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct ImageCategoryRow {
     pub image_id: i32,
     pub category_id: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, FromRow)]
 pub struct SubCategoryRow {
     pub category_id: i32,
     pub subcategory_id: i32,

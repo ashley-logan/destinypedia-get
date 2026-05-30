@@ -1,44 +1,211 @@
-use crate::bin_modules::cli::{DetailLevel, FileType, ResultType, SearchArgs};
+use crate::bin_modules::cli::{DetailLevel, ResultType, SearchArgs};
 
 use crate::bin_modules::database::rows::ImagesRow;
 use crate::{DestinyFetchError, Result};
 use csv::Writer;
+use futures::TryStreamExt;
 use sqlx::SqlitePool;
+use sqlx::query::QueryAs;
 use sqlx::{QueryBuilder, sqlite::Sqlite};
 use std::ops::Mul;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use tokio::io::{self, AsyncWriteExt};
 
-pub async fn search_images(args: &SearchArgs, pool: &SqlitePool) -> Result<Vec<ImagesRow>> {
-    let mut q: QueryBuilder<Sqlite> = match &args.detail_level {
-        Some(DetailLevel { simple: true, .. }) => QueryBuilder::new("SELECT title FROM images "),
-        Some(DetailLevel { detailed: true, .. }) => QueryBuilder::new("SELECT * FROM images "),
-        _ => QueryBuilder::new("SELECT title, size_, width, height FROM images "),
-    };
+/*
+pub fn fetch<'e, 'c, E>(
+    self,
+    executor: E,
+) -> Pin<Box<dyn Stream<Item = Result<O, Error>> + Send + 'e>>
+where
+    'c: 'e,
+    'q: 'e,
+    E: 'e + Executor<'c, Database = DB>,
+    DB: 'e,
+    O: 'e,
+    A: 'e,
+*/
+
+pub type ImagesQuery<'a> = QueryAs<'a, Sqlite, ImagesRow, sqlx::sqlite::SqliteArguments>;
+
+pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
+    let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM images ");
+
     q.push("WHERE title LIKE ");
     q.push_bind(format!("%{}% ", &args.search));
 
-    Ok(vec![])
+    if let Some(c) = &args.in_category {
+        q.push(
+            r#"AND EXISTS (
+            SELECT 1
+            FROM image_categories as ic
+            JOIN categories ON categories.id  = ic.category_id
+            WHERE ic.image_id = images.id AND categories.title = ?
+        ) "#,
+        );
+        q.push_bind(c);
+    }
+
+    if let Some(v) = &args.ftype {
+        q.push("AND extension IN (");
+        let mut sep = q.separated(", ");
+        for ext in v.iter() {
+            sep.push_bind(ext);
+        }
+        sep.push_unseparated(") ");
+    }
+
+    match (&args.minsize, &args.maxsize) {
+        (Some(min), Some(max)) => {
+            q.push("AND size_ BETWEEN ? AND ? ");
+            q.push_bind(min);
+            q.push_bind(max);
+        }
+        (Some(min), None) => {
+            q.push("AND size_ >= ? ");
+            q.push_bind(min);
+        }
+        (None, Some(max)) => {
+            q.push("AND size_ <= ? ");
+            q.push_bind(max);
+        }
+        _ => (),
+    }
+
+    match (&args.after, &args.before) {
+        (Some(min), Some(max)) => {
+            q.push("AND timestamp_ BETWEEN ? AND ? ");
+            q.push_bind(min.timestamp());
+            q.push_bind(max.timestamp());
+        }
+        (Some(min), None) => {
+            q.push("AND timestamp_ >= ? ");
+            q.push_bind(min.timestamp());
+        }
+        (None, Some(max)) => {
+            q.push("AND timestamp_ <= ? ");
+            q.push_bind(max.timestamp());
+        }
+        _ => (),
+    }
+
+    match (&args.minwidth, &args.maxwidth) {
+        (Some(min), Some(max)) => {
+            q.push("AND width BETWEEN ? AND ? ");
+            q.push_bind(min);
+            q.push_bind(max);
+        }
+        (Some(min), None) => {
+            q.push("AND width >= ? ");
+            q.push_bind(min);
+        }
+        (None, Some(max)) => {
+            q.push("AND width <= ? ");
+            q.push_bind(max);
+        }
+        _ => (),
+    }
+    match (&args.minheight, &args.maxheight) {
+        (Some(min), Some(max)) => {
+            q.push("AND height BETWEEN ? AND ? ");
+            q.push_bind(min);
+            q.push_bind(max);
+        }
+        (Some(min), None) => {
+            q.push("AND height >= ? ");
+            q.push_bind(min);
+        }
+        (None, Some(max)) => {
+            q.push("AND height <= ? ");
+            q.push_bind(max);
+        }
+        _ => (),
+    }
+
+    match (&args.minpixels, &args.maxpixels) {
+        (Some(min), Some(max)) => {
+            q.push("AND width * height BETWEEN ? AND ? ");
+            q.push_bind(min);
+            q.push_bind(max);
+        }
+        (Some(min), None) => {
+            q.push("AND width * height >= ? ");
+            q.push_bind(min);
+        }
+        (None, Some(max)) => {
+            q.push("AND width * height <= ? ");
+            q.push_bind(max);
+        }
+        _ => (),
+    }
+
+    q.push("ORDER BY title");
+
+    match &args.limit {
+        Some(lim) if *lim >= 0_i32 => {
+            q.push(" LIMIT ?");
+            q.push_bind(lim);
+        }
+        _ => (),
+    }
+
+    q
 }
-// pub fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
-//     let (imgs, cats) = match args.result_type {
-//         ResultType { all: true, .. } => (
-//             search_images(&args, &mut conn)?,
-//             search_categories(&args, &mut conn)?,
-//         ),
-//         ResultType { images: true, .. } => (search_images(&args, &mut conn)?, vec![]),
-//         ResultType {
-//             categories: true, ..
-//         } => (vec![], search_categories(&args, &mut conn)?),
-//         _ => return Err(DestinyFetchError::MissingArgErr),
-//     };
-//     match args.output {
-//         Some(f) => {
-//             output_search(f.as_path(), imgs, cats)?;
-//         }
-//         None => (),
-//     }
-//     Ok(())
-// }
+
+fn construct_categories_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
+    let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM categories ");
+    q.push("WHERE title LIKE ? ");
+    q.push_bind(format!("%{}% ", args.search));
+    if let Some(ic) = &args.in_category {
+        q.push(
+            r#"
+            AND EXISTS (
+                SELECT 1
+                FROM subcategories as sc
+                JOIN categories AS c ON sc.parent_id = c.id
+                WHERE categories.id = sc.child_id AND c.title = ?
+        ) "#,
+        );
+        q.push_bind(ic);
+    }
+
+    q.push("ORDER BY title");
+
+    match &args.limit {
+        Some(lim) if *lim >= 0 => {
+            q.push(" LIMIT ?");
+            q.push_bind(lim);
+        }
+        _ => (),
+    }
+
+    q
+}
+
+pub fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
+    let (mut images_q, mut cats_q): (Option<QueryBuilder<Sqlite>>, Option<QueryBuilder<Sqlite>>) =
+        (None, None);
+
+    if let ResultType {
+        categories: true, ..
+    }
+    | ResultType { all: true, .. } = &args.result_type
+    {
+        cats_q = Some(construct_categories_query(&args));
+    }
+    if let ResultType { images: true, .. } | ResultType { all: true, .. } = &args.result_type {
+        images_q = Some(construct_categories_query(&args));
+    }
+    if let Some(mut q) = images_q {
+        let img_stream = q.build_query_as::<'_, ImagesRow>().fetch(conn);
+    }
+
+    if let Some(mut q) = cats_q {
+        let cat_stream = q.build_query_as::<'_, ImagesRow>().fetch(conn);
+    }
+
+    Ok(())
+}
 
 // fn output_search(file: &Path, imgs: Vec<Images>, cats: Vec<Categories>) -> Result<()> {
 //     let mut w = csv::Writer::from_path(file)?;
@@ -235,20 +402,3 @@ pub async fn search_images(args: &SearchArgs, pool: &SqlitePool) -> Result<Vec<I
 
 //     Ok(results)
 // }
-
-fn as_string_vec(ftypes: &Vec<FileType>) -> Vec<String> {
-    let mut v: Vec<String> = vec![];
-
-    for f in ftypes {
-        match f {
-            FileType::PNG => v.push(".png".into()),
-            FileType::JPG => v.extend_from_slice(&[".jpg".into(), ".jpeg".into()]),
-            FileType::HEIC => v.push(".heic".into()),
-            FileType::WEBP => v.push(".webp".into()),
-            FileType::GIF => v.push(".gif".into()),
-            FileType::SVG => v.push(".svg".into()),
-        };
-    }
-
-    v
-}

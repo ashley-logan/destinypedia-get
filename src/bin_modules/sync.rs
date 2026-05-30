@@ -308,8 +308,6 @@ async fn write_worker(
     // counters keep track of transaction information for caching
     // tx begins intial transaction
     //
-    let span = tracing::info_span!("WITHIN WRITE WORKER");
-    let _guard = span.enter();
     let mut total_insert_count: u64 = 0;
     let mut tx = pool.begin().await?;
     let mut insert_count: u64 = 0;
@@ -347,7 +345,6 @@ async fn write_worker(
                 timestamp_.and_utc().timestamp(),
                 ext_
             )
-            .persistent(true)
             .execute(&mut *tx)
             .await?
             .rows_affected(),
@@ -364,7 +361,6 @@ async fn write_worker(
                 subcats,
                 files
             )
-            .persistent(true)
             .execute(&mut *tx)
             .await?
             .rows_affected(),
@@ -377,7 +373,6 @@ async fn write_worker(
                 image_id,
                 category_id
             )
-            .persistent(true)
             .execute(&mut *tx)
             .await?
             .rows_affected(),
@@ -390,7 +385,6 @@ async fn write_worker(
                 category_id,
                 subcategory_id
             )
-            .persistent(true)
             .execute(&mut *tx)
             .await?
             .rows_affected(),

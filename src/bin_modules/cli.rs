@@ -197,7 +197,7 @@ pub struct ResultType {
 
 #[derive(Args, Debug, Clone)]
 #[group(required = false, multiple = false)]
-pub(crate) struct DetailLevel {
+pub struct DetailLevel {
     /// return image results only
     #[arg(long, short = 'd')]
     pub detailed: bool,
