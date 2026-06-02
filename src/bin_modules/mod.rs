@@ -31,8 +31,8 @@ pub enum DestinyFetchError {
     AsyncRecvErr(#[from] async_channel::RecvError),
     #[from]
     RowError(#[from] super::database::error::DatabaseError),
-    #[from(std::io::Error, csv::Error)]
-    IOErr,
+    #[from]
+    IOErr(#[from] std::io::Error),
     #[from(skip)]
     #[display("no integer argument can be negative")]
     NegativeArgErr,

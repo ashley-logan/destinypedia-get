@@ -1,38 +1,93 @@
 use crate::bin_modules::cli::{DetailLevel, ResultType, SearchArgs};
-
-use crate::bin_modules::database::rows::ImagesRow;
+use crate::bin_modules::database::rows::{CategoriesRow, ImagesRow};
 use crate::{DestinyFetchError, Result};
-use csv::Writer;
 use futures::TryStreamExt;
 use sqlx::SqlitePool;
-use sqlx::query::QueryAs;
 use sqlx::{QueryBuilder, sqlite::Sqlite};
-use std::ops::Mul;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
-use tokio::io::{self, AsyncWriteExt};
+use tokio::fs;
+use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 
-/*
-pub fn fetch<'e, 'c, E>(
-    self,
-    executor: E,
-) -> Pin<Box<dyn Stream<Item = Result<O, Error>> + Send + 'e>>
-where
-    'c: 'e,
-    'q: 'e,
-    E: 'e + Executor<'c, Database = DB>,
-    DB: 'e,
-    O: 'e,
-    A: 'e,
-*/
+pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
+    let mut wtr: Box<dyn AsyncWrite + Send + Unpin>;
+    if let Some(f) = &args.output {
+        wtr = Box::new(fs::File::create(f).await?);
+    } else {
+        wtr = Box::new(io::stdout());
+    }
 
-pub type ImagesQuery<'a> = QueryAs<'a, Sqlite, ImagesRow, sqlx::sqlite::SqliteArguments>;
+    if let ResultType {
+        categories: true, ..
+    }
+    | ResultType { all: true, .. } = &args.result_type
+    {
+        let cat_fmt = match &args.detail_level {
+            Some(DetailLevel { simple: true, .. }) => {
+                move |cat: CategoriesRow| -> String { format!("{}\n", cat.title) }
+            }
+            Some(DetailLevel { detailed: true, .. }) => move |cat: CategoriesRow| -> String {
+                format!(
+                    "{:<5}, {:<30}, {:<3}, {:<3}\n",
+                    cat.id, cat.title, cat.files, cat.subcats,
+                )
+            },
+            Some(DetailLevel { default: true, .. }) | _ => move |cat: CategoriesRow| -> String {
+                format!(
+                    "{:<30}, images{:<4}, subcategories{:<4}\n",
+                    cat.title, cat.files, cat.subcats,
+                )
+            },
+        };
+        let mut cats_q = construct_categories_query(&args);
+        let mut cat_stream = cats_q.build_query_as::<'_, CategoriesRow>().fetch(conn);
+        while let Ok(Some(cat)) = cat_stream.try_next().await {
+            let _ = wtr.write_all(cat_fmt(cat).as_bytes()).await?;
+        }
+    }
+    if let ResultType { images: true, .. } | ResultType { all: true, .. } = &args.result_type {
+        let img_fmt = match &args.detail_level {
+            Some(DetailLevel { simple: true, .. }) => {
+                move |img: ImagesRow| -> String { format!("{}\n", img.title) }
+            }
+            Some(DetailLevel { detailed: true, .. }) => move |img: ImagesRow| -> String {
+                format!(
+                    "{:<5}, {:<30}, {:<5}, {:<5}, {:<10}, {:<4}, {}",
+                    img.id,
+                    img.title,
+                    img.width,
+                    img.height,
+                    img.size,
+                    img.ext_.map_or("NULL".to_string(), |e| e.to_string()),
+                    img.url
+                )
+            },
+            Some(DetailLevel { default: true, .. }) | _ => move |img: ImagesRow| -> String {
+                format!(
+                    "({:<8}) {:<30}, {:<4}x{:<4}, {:<10}KiB, {:<5}",
+                    img.id,
+                    img.title,
+                    img.width,
+                    img.height,
+                    img.size,
+                    img.ext_.map_or("NULL".to_string(), |e| e.to_string())
+                )
+            },
+        };
+        let mut images_q = construct_categories_query(&args);
+        let mut img_stream = images_q.build_query_as::<'_, ImagesRow>().fetch(conn);
+        while let Ok(Some(img)) = img_stream.try_next().await {
+            let _ = wtr.write_all(img_fmt(img).as_bytes()).await?;
+        }
+    }
+
+    Ok(())
+}
 
 pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
     let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM images ");
 
-    q.push("WHERE title LIKE ");
-    q.push_bind(format!("%{}% ", &args.search));
+    q.push("WHERE LOWER(title) LIKE ");
+    q.push_bind(format!("%{}% ", &args.search.to_lowercase()));
 
     if let Some(c) = &args.in_category {
         q.push(
@@ -40,10 +95,10 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
             SELECT 1
             FROM image_categories as ic
             JOIN categories ON categories.id  = ic.category_id
-            WHERE ic.image_id = images.id AND categories.title = ?
-        ) "#,
+            WHERE ic.image_id = images.id AND categories.title = "#,
         );
         q.push_bind(c);
+        q.push("\n)");
     }
 
     if let Some(v) = &args.ftype {
@@ -57,16 +112,17 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
 
     match (&args.minsize, &args.maxsize) {
         (Some(min), Some(max)) => {
-            q.push("AND size_ BETWEEN ? AND ? ");
+            q.push("AND size_ BETWEEN ");
             q.push_bind(min);
+            q.push(" AND ");
             q.push_bind(max);
         }
         (Some(min), None) => {
-            q.push("AND size_ >= ? ");
+            q.push("AND size_ >= ");
             q.push_bind(min);
         }
         (None, Some(max)) => {
-            q.push("AND size_ <= ? ");
+            q.push("AND size_ <= ");
             q.push_bind(max);
         }
         _ => (),
@@ -74,49 +130,52 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
 
     match (&args.after, &args.before) {
         (Some(min), Some(max)) => {
-            q.push("AND timestamp_ BETWEEN ? AND ? ");
-            q.push_bind(min.timestamp());
-            q.push_bind(max.timestamp());
+            q.push("AND timestamp_ BETWEEN ");
+            q.push_bind(min.and_utc().timestamp());
+            q.push(" AND ");
+            q.push_bind(max.and_utc().timestamp());
         }
         (Some(min), None) => {
-            q.push("AND timestamp_ >= ? ");
-            q.push_bind(min.timestamp());
+            q.push("AND timestamp_ >= ");
+            q.push_bind(min.and_utc().timestamp());
         }
         (None, Some(max)) => {
-            q.push("AND timestamp_ <= ? ");
-            q.push_bind(max.timestamp());
+            q.push("AND timestamp_ <= ");
+            q.push_bind(max.and_utc().timestamp());
         }
         _ => (),
     }
 
     match (&args.minwidth, &args.maxwidth) {
         (Some(min), Some(max)) => {
-            q.push("AND width BETWEEN ? AND ? ");
+            q.push("AND width BETWEEN ");
             q.push_bind(min);
+            q.push(" AND ");
             q.push_bind(max);
         }
         (Some(min), None) => {
-            q.push("AND width >= ? ");
+            q.push("AND width >= ");
             q.push_bind(min);
         }
         (None, Some(max)) => {
-            q.push("AND width <= ? ");
+            q.push("AND width <= ");
             q.push_bind(max);
         }
         _ => (),
     }
     match (&args.minheight, &args.maxheight) {
         (Some(min), Some(max)) => {
-            q.push("AND height BETWEEN ? AND ? ");
+            q.push("AND height BETWEEN ");
             q.push_bind(min);
+            q.push(" AND ");
             q.push_bind(max);
         }
         (Some(min), None) => {
-            q.push("AND height >= ? ");
+            q.push("AND height >= ");
             q.push_bind(min);
         }
         (None, Some(max)) => {
-            q.push("AND height <= ? ");
+            q.push("AND height <= ");
             q.push_bind(max);
         }
         _ => (),
@@ -124,26 +183,27 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
 
     match (&args.minpixels, &args.maxpixels) {
         (Some(min), Some(max)) => {
-            q.push("AND width * height BETWEEN ? AND ? ");
+            q.push("AND width * height BETWEEN ");
             q.push_bind(min);
+            q.push(" AND ");
             q.push_bind(max);
         }
         (Some(min), None) => {
-            q.push("AND width * height >= ? ");
+            q.push("AND width * height >= ");
             q.push_bind(min);
         }
         (None, Some(max)) => {
-            q.push("AND width * height <= ? ");
+            q.push("AND width * height <= ");
             q.push_bind(max);
         }
         _ => (),
     }
 
-    q.push("ORDER BY title");
+    q.push(" ORDER BY title");
 
     match &args.limit {
         Some(lim) if *lim >= 0_i32 => {
-            q.push(" LIMIT ?");
+            q.push(" LIMIT ");
             q.push_bind(lim);
         }
         _ => (),
@@ -182,29 +242,48 @@ fn construct_categories_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
     q
 }
 
-pub fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
-    let (mut images_q, mut cats_q): (Option<QueryBuilder<Sqlite>>, Option<QueryBuilder<Sqlite>>) =
-        (None, None);
+#[cfg(test)]
+mod tests {
+    use sqlx::Execute;
 
-    if let ResultType {
-        categories: true, ..
-    }
-    | ResultType { all: true, .. } = &args.result_type
-    {
-        cats_q = Some(construct_categories_query(&args));
-    }
-    if let ResultType { images: true, .. } | ResultType { all: true, .. } = &args.result_type {
-        images_q = Some(construct_categories_query(&args));
-    }
-    if let Some(mut q) = images_q {
-        let img_stream = q.build_query_as::<'_, ImagesRow>().fetch(conn);
+    use super::*;
+    fn simple_image_search() -> SearchArgs {
+        SearchArgs {
+            search: "Hive".into(),
+            result_type: ResultType {
+                images: true,
+                categories: false,
+                all: false,
+            },
+            in_category: None,
+            output: None,
+            limit: None,
+            detail_level: Some(DetailLevel {
+                simple: true,
+                default: false,
+                detailed: false,
+            }),
+            ftype: None,
+            maxsize: None,
+            minsize: None,
+            before: None,
+            after: None,
+            maxwidth: None,
+            minwidth: None,
+            maxheight: None,
+            minheight: None,
+            maxpixels: None,
+            minpixels: None,
+        }
     }
 
-    if let Some(mut q) = cats_q {
-        let cat_stream = q.build_query_as::<'_, ImagesRow>().fetch(conn);
+    #[tokio::test]
+    async fn test_simple_sql1() {
+        let args: SearchArgs = simple_image_search();
+        let test: QueryBuilder<Sqlite> = construct_images_query(&args);
+        let exp = "SELECT * FROM images WHERE title LIKE ? ORDER BY title";
+        assert_eq!(test.into_string(), exp);
     }
-
-    Ok(())
 }
 
 // fn output_search(file: &Path, imgs: Vec<Images>, cats: Vec<Categories>) -> Result<()> {

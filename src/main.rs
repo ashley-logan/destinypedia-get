@@ -4,6 +4,8 @@ use clap::Parser;
 use dirs;
 use std::{fs, path};
 
+pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
+
 fn main() {
     let _cli: cli::CLI = cli::CLI::parse();
 }
@@ -11,7 +13,7 @@ fn main() {
 async fn sync_destinypedia() -> Result<()> {
     let db = dirs::data_local_dir()
         .or(dirs::data_dir())
-        .ok_or(DestinyFetchError::IOErr)?
+        .ok_or(DestinyFetchError::InvalidPathErr)?
         .join("destiny_fetch.db");
     let tmp = db.with_added_extension("tmp");
 

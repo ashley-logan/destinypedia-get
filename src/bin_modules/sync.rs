@@ -37,7 +37,7 @@ pub fn create_backup<T: AsRef<path::Path> + std::fmt::Debug>(original: T) -> Res
 
 #[tracing::instrument]
 pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
-    sqlx::migrate!().run(pool).await?;
+    crate::MIGRATOR.run(pool).await?;
     Ok(())
 }
 

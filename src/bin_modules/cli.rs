@@ -1,6 +1,6 @@
 use super::{DestinyFetchError, Result};
 use crate::bin_modules::database::rows::Ext;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Utc};
 use clap::{
     Args, Parser, Subcommand, ValueEnum,
     builder::{PathBufValueParser, TypedValueParser},
@@ -25,48 +25,31 @@ fn parse_as_file(p: PathBuf) -> Result<PathBuf> {
     }
 }
 
-fn parse_as_utc(s: &str) -> Result<DateTime<Utc>> {
-    if let Ok(t3) = DateTime::parse_from_rfc3339(s) {
-        Ok(t3.into())
-    } else if let Ok(t2) = DateTime::parse_from_rfc2822(s) {
-        Ok(t2.into())
+fn parse_as_utc(s: &str) -> Result<NaiveDateTime> {
+    if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
+        Ok(dt)
     } else {
-        match DateTime::parse_from_str(s, "%Y-%m-%d") {
-            Ok(t1) => Ok(t1.into()),
-            Err(e) => Err(e)?,
+        match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+            Ok(dt) => Ok(dt.and_time(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())),
+            Err(e) => Err(DestinyFetchError::InvalidTimestampErr(e)),
         }
     }
 }
 
-fn parse_search_command(args: SearchArgs) {
-    ()
-}
-
-fn parse_download_command(args: DownloadArgs) {
-    ()
-}
-
-pub fn handle_args(cli: CLI) {
-    match cli.cmd {
-        Command::Search(s) => parse_search_command(s),
-        Command::Download(d) => parse_download_command(d),
-    }
-}
-
-#[derive(Parser)]
+#[derive(Debug, Parser, PartialEq, Eq)]
 #[command(version, about = "CLI tool for fetching images from destinypedia.com", long_about = None)]
 pub struct CLI {
     #[command(subcommand)]
     cmd: Command, // destinypedia-get [search | download] ...
 }
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Subcommand, PartialEq, Eq)]
 enum Command {
     Search(SearchArgs),
     Download(DownloadArgs),
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, PartialEq, Eq)]
 pub struct SearchArgs {
     pub search: String,
     #[command(flatten)]
@@ -86,9 +69,9 @@ pub struct SearchArgs {
     #[arg(long)]
     pub minsize: Option<i32>,
     #[arg(long, value_parser = parse_as_utc)]
-    pub before: Option<DateTime<Utc>>,
+    pub before: Option<NaiveDateTime>,
     #[arg(long, value_parser = parse_as_utc)]
-    pub after: Option<DateTime<Utc>>,
+    pub after: Option<NaiveDateTime>,
     #[arg(long)]
     pub maxwidth: Option<i32>,
     #[arg(long)]
@@ -113,7 +96,7 @@ pub struct SearchArgs {
 //     .select((Page::as_select(), Book::as_select()))
 //     .load::<(Page, Book)>(conn)?;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, PartialEq, Eq)]
 pub struct DownloadArgs {
     #[command(flatten)]
     pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
@@ -128,58 +111,58 @@ pub struct DownloadArgs {
     target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
 }
 
-#[derive(Subcommand)]
-pub(crate) enum Commands {
-    Search {
-        #[command(flatten)]
-        result_type: ResultType, // filter by images, categories, or both
-        #[arg(long = "in-category", short = 'c')]
-        in_category: Option<String>, // only show results in this category
-        #[arg(long, short = 'o')]
-        output: Option<PathBuf>, // --output [-o] batch1.json
-        #[arg(long, short = 'n')]
-        limit: Option<i32>, // show this many results; default all
-        #[command(flatten)]
-        detail_level: Option<DetailLevel>, // amount of extra information provided for each result
-        #[arg(long, value_enum)]
-        ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
-        #[arg(long)]
-        maxsize: Option<i32>,
-        #[arg(long)]
-        minsize: Option<i32>,
-        #[arg(long)]
-        before: Option<String>,
-        #[arg(long)]
-        after: Option<String>,
-        #[arg(long)]
-        maxwidth: Option<i32>,
-        #[arg(long)]
-        minwidth: Option<i32>,
-        #[arg(long)]
-        maxheight: Option<i32>,
-        #[arg(long)]
-        minheight: Option<i32>,
-        #[arg(long)]
-        maxpixels: Option<i32>,
-        #[arg(long)]
-        minpixels: Option<i32>,
-    },
-    Download {
-        #[command(flatten)]
-        pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
+// #[derive(Subcommand)]
+// pub(crate) enum Commands {
+//     Search {
+//         #[command(flatten)]
+//         result_type: ResultType, // filter by images, categories, or both
+//         #[arg(long = "in-category", short = 'c')]
+//         in_category: Option<String>, // only show results in this category
+//         #[arg(long, short = 'o')]
+//         output: Option<PathBuf>, // --output [-o] batch1.json
+//         #[arg(long, short = 'n')]
+//         limit: Option<i32>, // show this many results; default all
+//         #[command(flatten)]
+//         detail_level: Option<DetailLevel>, // amount of extra information provided for each result
+//         #[arg(long, value_enum)]
+//         ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
+//         #[arg(long)]
+//         maxsize: Option<i32>,
+//         #[arg(long)]
+//         minsize: Option<i32>,
+//         #[arg(long)]
+//         before: Option<String>,
+//         #[arg(long)]
+//         after: Option<String>,
+//         #[arg(long)]
+//         maxwidth: Option<i32>,
+//         #[arg(long)]
+//         minwidth: Option<i32>,
+//         #[arg(long)]
+//         maxheight: Option<i32>,
+//         #[arg(long)]
+//         minheight: Option<i32>,
+//         #[arg(long)]
+//         maxpixels: Option<i32>,
+//         #[arg(long)]
+//         minpixels: Option<i32>,
+//     },
+//     Download {
+//         #[command(flatten)]
+//         pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
 
-        #[arg(
-            long = "target-dir",
-            short = 'd',
-            value_name = "DOWNLOAD_DIR",
-            help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
-        )]
-        #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
-        target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
-    },
-}
+//         #[arg(
+//             long = "target-dir",
+//             short = 'd',
+//             value_name = "DOWNLOAD_DIR",
+//             help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
+//         )]
+//         #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
+//         target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
+//     },
+// }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, PartialEq, Eq)]
 #[group(required = true, multiple = false)]
 pub struct ResultType {
     /// return image results only
@@ -195,7 +178,7 @@ pub struct ResultType {
     pub all: bool,
 }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, PartialEq, Eq)]
 #[group(required = false, multiple = false)]
 pub struct DetailLevel {
     /// return image results only
@@ -211,7 +194,7 @@ pub struct DetailLevel {
     pub default: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Args, PartialEq, Eq)]
 #[group(required = true, multiple = false)]
 pub struct Pattern {
     #[arg(long, help = "download all images from all specified pages")]
@@ -250,8 +233,85 @@ pub struct Pages {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
+    use clap::{Command, CommandFactory};
     use tempfile::{NamedTempFile, TempDir};
+
+    #[test]
+    fn test_command_search1() {
+        let r = CLI::command()
+            .try_get_matches_from([
+                "destiny_fetch",
+                "search",
+                "--images",
+                "-c",
+                "Images of Pulse Rifles",
+                "Out",
+            ])
+            .unwrap();
+        assert_eq!(r.subcommand_name(), Some("search"));
+        let sub = r
+            .subcommand_matches("search")
+            .expect("no matches for search");
+        assert!(sub.get_one::<bool>("images").is_some());
+        assert_eq!(
+            sub.get_one("in_category"),
+            Some(&String::from("Images of Pulse Rifles"))
+        );
+    }
+
+    #[test]
+    fn test_command_search2() {
+        let cli = CLI::try_parse_from([
+            "destiny_fetch",
+            "search",
+            "Hive",
+            "--all",
+            "--in-category",
+            "Images of Hive",
+            "--minwidth",
+            "1080",
+            "--minheight",
+            "920",
+            "--maxsize",
+            "5000",
+            "--ftype",
+            "png",
+            "--ftype",
+            "jpg",
+            "--before",
+            "2020-12-25",
+        ])
+        .expect("unable to parse args");
+        let exp = CLI {
+            cmd: super::Command::Search(SearchArgs {
+                search: "Hive".into(),
+                result_type: ResultType {
+                    images: false,
+                    categories: false,
+                    all: true,
+                },
+                in_category: Some("Images of Hive".into()),
+                output: None,
+                limit: None,
+                detail_level: None,
+                ftype: Some(vec![Ext::PNG, Ext::JPG]),
+                maxsize: Some(5000),
+                minsize: None,
+                before: NaiveDateTime::parse_from_str("2020-12-25 00:00", "%Y-%m-%d %H:%M").ok(),
+                after: None,
+                maxwidth: None,
+                minwidth: Some(1080),
+                maxheight: None,
+                minheight: Some(920),
+                maxpixels: None,
+                minpixels: None,
+            }),
+        };
+        assert_eq!(cli, exp);
+    }
 
     #[test]
     fn test_parse_dir_success() {

@@ -15,7 +15,7 @@ pub enum Row {
     SubCategory(SubCategoryRow),
 }
 
-#[derive(Debug, Clone, clap::ValueEnum, sqlx::Type)]
+#[derive(Debug, Clone, clap::ValueEnum, sqlx::Type, derive_more::Display, PartialEq, Eq)]
 pub enum Ext {
     PNG,
     JPG,
