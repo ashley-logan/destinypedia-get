@@ -6,6 +6,8 @@ pub mod sync;
 pub use cache::Cache;
 mod logging;
 pub use logging::setup_logging;
+pub mod download;
+pub mod interactive;
 pub mod search;
 
 #[derive(Debug, derive_more::Error, derive_more::From, derive_more::Display)]
@@ -21,6 +23,8 @@ pub enum DestinyFetchError {
         destinypedia::request::error::RequestError
     )]
     RequestErr,
+    #[from]
+    InteractiveErr(#[from] inquire::InquireError),
     #[from(destinypedia::response::error::ResponseError)]
     ResponseErr,
     #[from]
@@ -36,6 +40,8 @@ pub enum DestinyFetchError {
     #[from(skip)]
     #[display("no integer argument can be negative")]
     NegativeArgErr,
+    #[from]
+    ParseIdErr(#[from] std::num::ParseIntError),
     #[from(skip)]
     #[display("attempted to call categories/images method on incorrect result_type")]
     WrongQueryMethod,

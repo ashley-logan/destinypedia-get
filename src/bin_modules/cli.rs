@@ -54,7 +54,7 @@ pub struct SearchArgs {
     pub search: String,
     #[command(flatten)]
     pub result_type: ResultType, // filter by images, categories, or both
-    #[arg(long = "in-category", short = 'c')]
+    #[arg(long = "in-category", short = 'C')]
     pub in_category: Option<String>, // only show results in this category
     #[arg(long, short = 'o')]
     pub output: Option<PathBuf>, // --output [-o] batch1.json
@@ -98,8 +98,10 @@ pub struct SearchArgs {
 
 #[derive(Debug, Args, PartialEq, Eq)]
 pub struct DownloadArgs {
-    #[command(flatten)]
-    pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
+    #[arg(long, short = 'C')]
+    pub in_category: Option<String>,
+    #[arg(long, short = 'i', help = "")]
+    pub input: Option<PathBuf>,
 
     #[arg(
         long = "target-dir",
@@ -109,57 +111,28 @@ pub struct DownloadArgs {
     )]
     #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
     target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
+    #[arg(long, num_args = 1..)]
+    pub titles: Option<Vec<String>>,
+    #[arg(long, num_args = 1..)]
+    pub ids: Option<Vec<i32>>,
+    #[arg()]
+    pub _titles: Option<Vec<String>>,
 }
 
-// #[derive(Subcommand)]
-// pub(crate) enum Commands {
-//     Search {
-//         #[command(flatten)]
-//         result_type: ResultType, // filter by images, categories, or both
-//         #[arg(long = "in-category", short = 'c')]
-//         in_category: Option<String>, // only show results in this category
-//         #[arg(long, short = 'o')]
-//         output: Option<PathBuf>, // --output [-o] batch1.json
-//         #[arg(long, short = 'n')]
-//         limit: Option<i32>, // show this many results; default all
-//         #[command(flatten)]
-//         detail_level: Option<DetailLevel>, // amount of extra information provided for each result
-//         #[arg(long, value_enum)]
-//         ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
-//         #[arg(long)]
-//         maxsize: Option<i32>,
-//         #[arg(long)]
-//         minsize: Option<i32>,
-//         #[arg(long)]
-//         before: Option<String>,
-//         #[arg(long)]
-//         after: Option<String>,
-//         #[arg(long)]
-//         maxwidth: Option<i32>,
-//         #[arg(long)]
-//         minwidth: Option<i32>,
-//         #[arg(long)]
-//         maxheight: Option<i32>,
-//         #[arg(long)]
-//         minheight: Option<i32>,
-//         #[arg(long)]
-//         maxpixels: Option<i32>,
-//         #[arg(long)]
-//         minpixels: Option<i32>,
-//     },
-//     Download {
-//         #[command(flatten)]
-//         pattern: Pattern, // [--all | --images MaraSovConceptArt1.jpg "Thorn Wishes of Sorrow.jpg" Destiny_TK_Golgoroth\'s_Cellar.jpg]
+// #[derive(Args, Debug, Clone, PartialEq, Eq)]
+// #[group(required = true, multiple = false)]
+// pub struct ImagesSource {
+//     /// return image results only
+//     #[arg(long, help = "A")]
+//     pub titles: bool,
 
-//         #[arg(
-//             long = "target-dir",
-//             short = 'd',
-//             value_name = "DOWNLOAD_DIR",
-//             help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
-//         )]
-//         #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
-//         target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
-//     },
+//     /// return category results only
+//     #[arg(long, short = 'C')]
+//     pub categories: bool,
+
+//     /// returns both category and image results
+//     #[arg(long, short = 'A')]
+//     pub all: bool,
 // }
 
 #[derive(Args, Debug, Clone, PartialEq, Eq)]
