@@ -22,8 +22,11 @@ pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
     | ResultType { all: true, .. } = &args.result_type
     {
         let cat_fmt = match &args.detail_level {
-            Some(DetailLevel { simple: true, .. }) => {
+            Some(DetailLevel { titles: true, .. }) => {
                 move |cat: CategoriesRow| -> String { format!("{}\n", cat.title) }
+            }
+            Some(DetailLevel { ids: true, .. }) => {
+                move |cat: CategoriesRow| -> String { format!("{}\n", cat.id) }
             }
             Some(DetailLevel { detailed: true, .. }) => move |cat: CategoriesRow| -> String {
                 format!(
@@ -46,8 +49,11 @@ pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
     }
     if let ResultType { images: true, .. } | ResultType { all: true, .. } = &args.result_type {
         let img_fmt = match &args.detail_level {
-            Some(DetailLevel { simple: true, .. }) => {
+            Some(DetailLevel { titles: true, .. }) => {
                 move |img: ImagesRow| -> String { format!("{}\n", img.title) }
+            }
+            Some(DetailLevel { ids: true, .. }) => {
+                move |img: ImagesRow| -> String { format!("{}\n", img.id) }
             }
             Some(DetailLevel { detailed: true, .. }) => move |img: ImagesRow| -> String {
                 format!(
@@ -259,7 +265,8 @@ mod tests {
             output: None,
             limit: None,
             detail_level: Some(DetailLevel {
-                simple: true,
+                titles: true,
+                ids: false,
                 default: false,
                 detailed: false,
             }),

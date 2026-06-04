@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 // use super::schema::{categories, image_categories, images, subcategories};
 use crate::Result;
@@ -14,8 +14,19 @@ pub enum Row {
     ImageCategory(ImageCategoryRow),
     SubCategory(SubCategoryRow),
 }
-
-#[derive(Debug, Clone, clap::ValueEnum, sqlx::Type, derive_more::Display, PartialEq, Eq)]
+#[serde_with::serde_as]
+#[derive(
+    Debug,
+    Clone,
+    clap::ValueEnum,
+    sqlx::Type,
+    derive_more::Display,
+    PartialEq,
+    Eq,
+    serde_with::SerializeDisplay,
+    serde_with::DeserializeFromStr,
+)]
+#[display(rename_all = "lowercase")]
 pub enum Ext {
     PNG,
     JPG,
@@ -25,28 +36,33 @@ pub enum Ext {
     MP3,
     WEBP,
 }
-
+impl std::str::FromStr for Ext {
+    type Err = DestinyFetchError;
+    fn from_str(s: &str) -> Result<Self> {
+        match &s.to_lowercase()[..] {
+            "png" => Ok(Self::PNG),
+            "jpg" | "jpeg" => Ok(Self::JPG),
+            "svg" => Ok(Self::SVG),
+            "gif" => Ok(Self::SVG),
+            "mp4" => Ok(Self::MP4),
+            "mp3" => Ok(Self::MP3),
+            "webp" => Ok(Self::WEBP),
+            _ => Err(DestinyFetchError::ExtFromStrErr),
+        }
+    }
+}
 impl Ext {
     pub fn as_ext(value: impl AsRef<str>) -> Option<Self> {
         let s = value.as_ref();
         if let Some(i) = s.rfind('.') {
-            match &s.to_lowercase()[i..] {
-                ".png" => Some(Self::PNG),
-                ".jpg" | ".jpeg" => Some(Self::JPG),
-                ".svg" => Some(Self::SVG),
-                ".gif" => Some(Self::SVG),
-                ".mp4" => Some(Self::MP4),
-                ".mp3" => Some(Self::MP3),
-                ".webp" => Some(Self::WEBP),
-                _ => None,
-            }
+            Ext::from_str(&s[i + 1..]).ok()
         } else {
             None
         }
     }
 }
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, FromRow, serde::Deserialize, serde::Serialize)]
 pub struct ImagesRow {
     pub id: i32,
     pub title: String,

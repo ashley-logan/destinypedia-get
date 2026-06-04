@@ -86,22 +86,12 @@ pub struct SearchArgs {
     pub minpixels: Option<i32>,
 }
 
-// authors::table
-//     .inner_join(author_books::table.on(author_books::author_id.eq(authors::id)))
-//     .inner_join(books::table.on(author_books::book_id.eq(books::id)))
-
-// let page_with_book = pages::table
-//     .inner_join(books::table)
-//     .filter(books::title.eq("Momo"))
-//     .select((Page::as_select(), Book::as_select()))
-//     .load::<(Page, Book)>(conn)?;
-
 #[derive(Debug, Args, PartialEq, Eq)]
 pub struct DownloadArgs {
     #[arg(long, short = 'C')]
     pub in_category: Option<String>,
-    #[arg(long, short = 'i', help = "")]
-    pub input: Option<PathBuf>,
+    #[command(flatten)]
+    pub input: Option<InputType>,
 
     #[arg(
         long = "target-dir",
@@ -110,7 +100,7 @@ pub struct DownloadArgs {
         help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
     )]
     #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
-    target_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
+    output_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
     #[arg(long, num_args = 1..)]
     pub titles: Option<Vec<String>>,
     #[arg(long, num_args = 1..)]
@@ -119,21 +109,21 @@ pub struct DownloadArgs {
     pub _titles: Option<Vec<String>>,
 }
 
-// #[derive(Args, Debug, Clone, PartialEq, Eq)]
-// #[group(required = true, multiple = false)]
-// pub struct ImagesSource {
-//     /// return image results only
-//     #[arg(long, help = "A")]
-//     pub titles: bool,
+#[derive(Args, Debug, Clone, PartialEq, Eq)]
+#[group(required = false, multiple = false)]
+pub struct InputType {
+    /// return image results only
+    #[arg(long = "titles-input", value_parser = PathBufValueParser::new().try_map(parse_as_file), help = "Path to file of line delimited image titles")]
+    pub titles_input: Option<PathBuf>,
 
-//     /// return category results only
-//     #[arg(long, short = 'C')]
-//     pub categories: bool,
+    /// return category results only
+    #[arg(long = "ids-input", value_parser = PathBufValueParser::new().try_map(parse_as_file), help = "Path to file of line delimited image ids")]
+    pub ids_input: Option<PathBuf>,
 
-//     /// returns both category and image results
-//     #[arg(long, short = 'A')]
-//     pub all: bool,
-// }
+    /// returns both category and image results
+    #[arg(long = "from-saved", help = "Name of a previously saved search")]
+    pub from_saved: Option<String>,
+}
 
 #[derive(Args, Debug, Clone, PartialEq, Eq)]
 #[group(required = true, multiple = false)]
@@ -154,15 +144,19 @@ pub struct ResultType {
 #[derive(Args, Debug, Clone, PartialEq, Eq)]
 #[group(required = false, multiple = false)]
 pub struct DetailLevel {
-    /// return image results only
+    /// output all category/images information
     #[arg(long, short = 'd')]
     pub detailed: bool,
 
-    /// return category results only
-    #[arg(long, short = 's')]
-    pub simple: bool,
+    /// output onlu category/image titles
+    #[arg(long)]
+    pub titles: bool,
 
-    /// returns both category and image results
+    /// output only category/image ids
+    #[arg(long)]
+    pub ids: bool,
+
+    /// output important category/image information (default)
     #[arg(long)]
     pub default: bool,
 }
@@ -183,25 +177,6 @@ pub struct Pattern {
         help = "Line seperated text file that contains targeted image name(s)"
     )]
     images_input: PathBuf, // --images-input /home/meep/img_names.txt
-}
-
-#[derive(Debug, Args)]
-#[group(required = true, multiple = false)]
-pub struct Pages {
-    #[arg(
-        value_name = "PAGES",
-        help = "Page names must be seperated by a space. The name itself must replace all internal spaces as underscores."
-    )]
-    pages: Vec<String>, // ... Taken Ascendant_Plane_(location) Mara_Sov
-
-    #[arg(
-        value_name = "PAGES_INPUT_FILE",
-        long = "input-file",
-        short = 'i',
-        value_parser = PathBufValueParser::new().try_map(parse_as_file),
-        help = "Line seperated text file that contains page name(s)"
-    )]
-    page_file: PathBuf, // --input-file [-i] /home/meep/target_pages.txt
 }
 
 #[cfg(test)]

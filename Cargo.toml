@@ -17,7 +17,7 @@ better-tracing = "0.6.0"
 chrono = { version = "0.4.44", features = ["serde"] }
 clap = { version = "4.6.1", features = ["unstable-doc", "cargo", "derive"] }
 crossbeam-channel = "0.5.15"
-derive_more = { version = "2.1.1", features = ["display", "error", "from", "try_from"] }
+derive_more = { version = "2.1.1", features = ["display", "error", "from", "into", "try_from"] }
 dirs = "6.0.0"
 dotenvy = "0.15.7"
 futures = "0.3.32"
