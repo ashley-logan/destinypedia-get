@@ -4,26 +4,61 @@ use crate::bin_modules::{DestinyFetchError, Result};
 use destinypedia::NAMESPACE::CATEGORY;
 use dirs;
 use std::collections::HashSet;
+use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tokio::{fs, io};
 
-async fn parse_cached_search(name: String) -> Result<Vec<ImagesRow>> {
+pub async fn parse_cached_search(name: String) -> Result<Vec<ImagesRow>> {
     let mut cache_f = dirs::cache_dir().ok_or(DestinyFetchError::CachePathErr)?;
     cache_f.push(CACHE_FILE);
     let bytes = fs::read(&cache_f).await?;
     let v: Cache = serde_json::from_slice(&bytes[..])?;
-    let images = v.cached_searches.get(&name);
-    todo!("parse images or return error if None");
-    Ok(vec![])
+    let images: Option<&Vec<ImagesRow>> = v.cached_searches.get(&name);
+    match images {
+        Some(v) => Ok(v.to_vec()),
+        None => Err(DestinyFetchError::NotCachedErr),
+    }
 }
 
-async fn parse_titles_file(fpath: PathBuf) -> Result<HashSet<String>> {
-    let mut titles: HashSet<String> = HashSet::new();
+pub fn titles_from_file(path: PathBuf) -> Result<Vec<String>> {
+    let mut titles: Vec<String> = vec![];
+    let f = std::fs::File::open(&path)?;
+    let rdr = std::io::BufReader::new(f);
+    for ln in rdr.lines() {
+        let title: String = ln?.trim().to_string();
+        titles.push(title);
+    }
+    println!(
+        "Successfully parsed {} titles from {} !",
+        titles.len(),
+        path.display()
+    );
+    Ok(titles)
+}
+
+pub fn ids_from_file(path: PathBuf) -> Result<Vec<u16>> {
+    let mut ids: Vec<u16> = vec![];
+    let f = std::fs::File::open(&path)?;
+    let rdr = std::io::BufReader::new(f);
+    for ln in rdr.lines() {
+        let id: u16 = ln?.parse().map_err(|_| DestinyFetchError::NegativeArgErr)?;
+        ids.push(id);
+    }
+    println!(
+        "Successfully parsed {} titles from {} !",
+        ids.len(),
+        path.display()
+    );
+    Ok(ids)
+}
+
+pub async fn parse_titles_file(fpath: PathBuf) -> Result<Vec<String>> {
+    let mut titles: Vec<String> = vec![];
     let rdr = io::BufReader::new(fs::File::open(&fpath).await?);
     let mut lines = rdr.lines();
     while let Some(title) = lines.next_line().await? {
-        titles.insert(title.trim().into());
+        titles.push(title.trim().into());
     }
     println!(
         "Successfully parsed {} titles from {} !",
@@ -32,12 +67,12 @@ async fn parse_titles_file(fpath: PathBuf) -> Result<HashSet<String>> {
     );
     Ok(titles)
 }
-async fn parse_ids_file(fpath: PathBuf) -> Result<HashSet<i32>> {
-    let mut ids: HashSet<i32> = HashSet::new();
+pub async fn parse_ids_file(fpath: PathBuf) -> Result<Vec<i32>> {
+    let mut ids: Vec<i32> = vec![];
     let rdr = io::BufReader::new(fs::File::open(&fpath).await?);
     let mut lines = rdr.lines();
     while let Some(s) = lines.next_line().await? {
-        ids.insert(s.parse().map_err(|_| {
+        ids.push(s.parse().map_err(|_| {
             DestinyFetchError::ParseIdErr(s, fpath.to_str().unwrap_or("??").into())
         })?);
     }

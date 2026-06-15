@@ -62,6 +62,9 @@ pub enum DestinyFetchError {
     #[from(skip)]
     #[display("ERROR: No cache found")]
     CachePathErr,
+    #[from(skip)]
+    #[display("ERROR: No cached data matching name found")]
+    NotCachedErr,
     #[from]
     InvalidTimestampErr(#[from] chrono::ParseError),
     #[from(skip)]

@@ -86,43 +86,72 @@ pub struct SearchArgs {
     pub minpixels: Option<i32>,
 }
 
-#[derive(Debug, Args, PartialEq, Eq)]
+#[derive(Debug, Args, PartialEq, Eq, Default)]
 pub struct DownloadArgs {
-    #[arg(long, short = 'C')]
-    pub in_category: Option<String>,
     #[command(flatten)]
-    pub input: Option<InputType>,
+    pub input: Option<StdinInput>,
+    #[command(flatten)]
+    pub input_file: Option<FileInput>,
 
     #[arg(
-        long = "target-dir",
-        short = 'd',
-        value_name = "DOWNLOAD_DIR",
+        long = "output-dir",
+        short = 'o',
         help = "Specifies the directory which images will be downloaded to. This directory must already exist (default = $CWD)"
     )]
     #[arg(value_parser = PathBufValueParser::new().try_map(parse_as_dir))]
-    output_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
-    #[arg(long, num_args = 1..)]
-    pub titles: Option<Vec<String>>,
-    #[arg(long, num_args = 1..)]
-    pub ids: Option<Vec<i32>>,
-    #[arg()]
-    pub _titles: Option<Vec<String>>,
+    pub output_dir: Option<PathBuf>, // --target-dir [-d] /media/d2/
+
+    #[arg(
+        long,
+        help = "Don't show any confirmation prompts, forces this command to run uninteractively"
+    )]
+    pub noconfirm: bool,
 }
 
-#[derive(Args, Debug, Clone, PartialEq, Eq)]
-#[group(required = false, multiple = false)]
-pub struct InputType {
-    /// return image results only
+impl DownloadArgs {
+    pub fn no_input(&self) -> bool {
+        match self {
+            DownloadArgs {
+                input: None,
+                input_file: None,
+                ..
+            } => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Args, Debug, Clone, PartialEq, Eq, Default)]
+#[group(required = false, multiple = true, conflicts_with = "StdinInput")]
+pub struct FileInput {
     #[arg(long = "titles-input", value_parser = PathBufValueParser::new().try_map(parse_as_file), help = "Path to file of line delimited image titles")]
     pub titles_input: Option<PathBuf>,
 
-    /// return category results only
     #[arg(long = "ids-input", value_parser = PathBufValueParser::new().try_map(parse_as_file), help = "Path to file of line delimited image ids")]
     pub ids_input: Option<PathBuf>,
 
-    /// returns both category and image results
-    #[arg(long = "from-saved", help = "Name of a previously saved search")]
-    pub from_saved: Option<String>,
+    #[arg(long = "from-cached", help = "Name of a previously cached search")]
+    pub from_cached: Option<String>,
+}
+
+#[derive(Args, Debug, Clone, PartialEq, Eq, Default)]
+#[group(required = false, multiple = true)]
+pub struct StdinInput {
+    #[arg(
+        long,
+        num_args = 1..,
+        help = "Space sparated image titles, each title should be surrouned by quotes"
+    )]
+    pub titles: Option<Vec<String>>,
+
+    #[arg(long, num_args = 1.., help = "Space separated images ids, all ids must be positive")]
+    pub ids: Option<Vec<u16>>,
+
+    #[arg(
+        long = "in-category",
+        help = "Will target all images within this category"
+    )]
+    pub in_category: Option<String>,
 }
 
 #[derive(Args, Debug, Clone, PartialEq, Eq)]

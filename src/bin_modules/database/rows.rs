@@ -62,7 +62,7 @@ impl Ext {
     }
 }
 
-#[derive(Debug, FromRow, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, FromRow, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
 pub struct ImagesRow {
     pub id: i32,
     pub title: String,
