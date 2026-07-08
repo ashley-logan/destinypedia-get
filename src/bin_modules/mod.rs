@@ -70,6 +70,9 @@ pub enum DestinyFetchError {
     #[from(skip)]
     #[display("missing required argument")]
     MissingArgErr,
+    #[from(skip)]
+    #[display("ERROR: Failed to parse datetime")]
+    TimestampArgErr,
 }
 
 pub enum UserError {

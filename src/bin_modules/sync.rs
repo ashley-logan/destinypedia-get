@@ -229,8 +229,8 @@ fn process_response(
             send_id.send_blocking(qr.pageid.clone()).unwrap();
             send_row
                 .send_blocking(Row::SubCategory(SubCategoryRow {
-                    category_id: resp_id,
-                    subcategory_id: qr.pageid,
+                    category_id: resp_id.into(),
+                    subcategory_id: qr.pageid.into(),
                 }))
                 .expect("failed to send SubCategory row to writer");
             send_row
@@ -242,8 +242,8 @@ fn process_response(
         NAMESPACE::FILE => {
             send_row
                 .send_blocking(Row::ImageCategory(ImageCategoryRow {
-                    image_id: qr.pageid.clone(),
-                    category_id: resp_id,
+                    image_id: qr.pageid.into(),
+                    category_id: resp_id.into(),
                 }))
                 .expect("failed to send ImageCategoryRow to writer");
             send_row
@@ -331,8 +331,8 @@ async fn write_worker(
                 width,
                 height,
                 url,
-                timestamp_,
-                ext_,
+                timestamp,
+                extension,
             }) => query!(
                 r#"INSERT OR IGNORE INTO images 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
@@ -342,8 +342,8 @@ async fn write_worker(
                 size,
                 width,
                 height,
-                timestamp_.and_utc().timestamp(),
-                ext_
+                timestamp,
+                extension
             )
             .execute(&mut *tx)
             .await?

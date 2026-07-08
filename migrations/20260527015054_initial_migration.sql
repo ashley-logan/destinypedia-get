@@ -2,11 +2,12 @@
 CREATE TABLE IF NOT EXISTS images (
     id INTEGER PRIMARY KEY NOT NULL,
     title TEXT UNIQUE NOT NULL,
-    url_ TEXT NOT NULL,
-    size_ INTEGER NOT NULL,
+    url TEXT NOT NULL,
+    size INTEGER NOT NULL,
     width INTEGER NOT NULL,
     height INTEGER NOT NULL,
-    timestamp_ BIGINT NOT NULL
+    timestamp BIGINT NOT NULL,
+    extension TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS categories (

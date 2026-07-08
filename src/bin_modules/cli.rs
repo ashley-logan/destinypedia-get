@@ -1,6 +1,6 @@
 use super::{DestinyFetchError, Result};
 use crate::bin_modules::database::rows::Ext;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Utc};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Utc};
 use clap::{
     Args, Parser, Subcommand, ValueEnum,
     builder::{PathBufValueParser, TypedValueParser},
@@ -25,28 +25,47 @@ fn parse_as_file(p: PathBuf) -> Result<PathBuf> {
     }
 }
 
-fn parse_as_utc(s: &str) -> Result<NaiveDateTime> {
+fn parse_as_utc(s: &str) -> Result<DateTime<Utc>> {
     if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M") {
-        Ok(dt)
+        let local = dt
+            .and_local_timezone(Local)
+            .single()
+            .ok_or(DestinyFetchError::TimestampArgErr)?;
+        Ok(local.to_utc())
+    } else if let Ok(dt) = NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+        let time = NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap_or_default();
+        let local = dt
+            .and_time(time)
+            .and_local_timezone(Local)
+            .single()
+            .ok_or(DestinyFetchError::TimestampArgErr)?;
+        Ok(local.to_utc())
     } else {
-        match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-            Ok(dt) => Ok(dt.and_time(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())),
-            Err(e) => Err(DestinyFetchError::InvalidTimestampErr(e)),
-        }
+        Err(DestinyFetchError::TimestampArgErr)
     }
+
+    // if let Ok(dt) = DateTime::<Local>::parse_from_str(s, "%Y-%m-%d %H:%M") {
+    //     Ok()
+    // } else {
+    //     match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
+    //         Ok(dt) => Ok(dt.and_time(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())),
+    //         Err(e) => Err(DestinyFetchError::InvalidTimestampErr(e)),
+    //     }
+    // }
 }
 
 #[derive(Debug, Parser, PartialEq, Eq)]
 #[command(version, about = "CLI tool for fetching images from destinypedia.com", long_about = None)]
 pub struct CLI {
     #[command(subcommand)]
-    cmd: Command, // destinypedia-get [search | download] ...
+    pub cmd: Command, // destinypedia-get [search | download] ...
 }
 
 #[derive(Debug, Subcommand, PartialEq, Eq)]
-enum Command {
+pub enum Command {
     Search(SearchArgs),
     Download(DownloadArgs),
+    Sync,
 }
 
 #[derive(Debug, Args, PartialEq, Eq)]
@@ -54,7 +73,7 @@ pub struct SearchArgs {
     pub search: String,
     #[command(flatten)]
     pub result_type: ResultType, // filter by images, categories, or both
-    #[arg(long = "in-category", short = 'C')]
+    #[arg(long = "in-category")]
     pub in_category: Option<String>, // only show results in this category
     #[arg(long, short = 'o')]
     pub output: Option<PathBuf>, // --output [-o] batch1.json
@@ -69,9 +88,9 @@ pub struct SearchArgs {
     #[arg(long)]
     pub minsize: Option<i32>,
     #[arg(long, value_parser = parse_as_utc)]
-    pub before: Option<NaiveDateTime>,
+    pub before: Option<DateTime<Utc>>,
     #[arg(long, value_parser = parse_as_utc)]
-    pub after: Option<NaiveDateTime>,
+    pub after: Option<DateTime<Utc>>,
     #[arg(long)]
     pub maxwidth: Option<i32>,
     #[arg(long)]
@@ -223,7 +242,7 @@ mod tests {
                 "destiny_fetch",
                 "search",
                 "--images",
-                "-c",
+                "--in-category",
                 "Images of Pulse Rifles",
                 "Out",
             ])
@@ -277,7 +296,9 @@ mod tests {
                 ftype: Some(vec![Ext::PNG, Ext::JPG]),
                 maxsize: Some(5000),
                 minsize: None,
-                before: NaiveDateTime::parse_from_str("2020-12-25 00:00", "%Y-%m-%d %H:%M").ok(),
+                before: NaiveDateTime::parse_from_str("2020-12-25 00:00", "%Y-%m-%d %H:%M")
+                    .map(|d| d.and_local_timezone(Local).unwrap().to_utc())
+                    .ok(),
                 after: None,
                 maxwidth: None,
                 minwidth: Some(1080),
@@ -286,6 +307,15 @@ mod tests {
                 maxpixels: None,
                 minpixels: None,
             }),
+        };
+        assert_eq!(cli, exp);
+    }
+
+    #[test]
+    fn test_command_search3() {
+        let cli = CLI::try_parse_from(["destiny_fetch", "sync"]).expect("umable to parse args");
+        let exp = CLI {
+            cmd: super::Command::Sync,
         };
         assert_eq!(cli, exp);
     }

@@ -58,24 +58,13 @@ pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
             Some(DetailLevel { detailed: true, .. }) => move |img: ImagesRow| -> String {
                 format!(
                     "{:<5}, {:<30}, {:<5}, {:<5}, {:<10}, {:<4}, {}",
-                    img.id,
-                    img.title,
-                    img.width,
-                    img.height,
-                    img.size,
-                    img.ext_.map_or("NULL".to_string(), |e| e.to_string()),
-                    img.url
+                    img.id, img.title, img.width, img.height, img.size, img.extension, img.url
                 )
             },
             Some(DetailLevel { default: true, .. }) | _ => move |img: ImagesRow| -> String {
                 format!(
                     "({:<8}) {:<30}, {:<4}x{:<4}, {:<10}KiB, {:<5}",
-                    img.id,
-                    img.title,
-                    img.width,
-                    img.height,
-                    img.size,
-                    img.ext_.map_or("NULL".to_string(), |e| e.to_string())
+                    img.id, img.title, img.width, img.height, img.size, img.extension
                 )
             },
         };
@@ -137,17 +126,17 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
     match (&args.after, &args.before) {
         (Some(min), Some(max)) => {
             q.push("AND timestamp_ BETWEEN ");
-            q.push_bind(min.and_utc().timestamp());
+            q.push_bind(min.timestamp());
             q.push(" AND ");
-            q.push_bind(max.and_utc().timestamp());
+            q.push_bind(max.timestamp());
         }
         (Some(min), None) => {
             q.push("AND timestamp_ >= ");
-            q.push_bind(min.and_utc().timestamp());
+            q.push_bind(min.timestamp());
         }
         (None, Some(max)) => {
             q.push("AND timestamp_ <= ");
-            q.push_bind(max.and_utc().timestamp());
+            q.push_bind(max.timestamp());
         }
         _ => (),
     }

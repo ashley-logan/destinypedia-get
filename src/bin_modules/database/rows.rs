@@ -5,7 +5,10 @@ use crate::Result;
 use crate::bin_modules::DestinyFetchError;
 use chrono::Utc;
 use destinypedia::response::{Categories, CategoryInfo, ImageInfo, Images, QueryResult, items::*};
-use sqlx::{FromRow, sqlite::Sqlite};
+use sqlx::{
+    FromRow, Row as Row_,
+    sqlite::{Sqlite, SqliteRow},
+};
 
 #[derive(Debug)]
 pub enum Row {
@@ -35,6 +38,7 @@ pub enum Ext {
     MP4,
     MP3,
     WEBP,
+    UNKNOWN,
 }
 impl std::str::FromStr for Ext {
     type Err = DestinyFetchError;
@@ -47,51 +51,67 @@ impl std::str::FromStr for Ext {
             "mp4" => Ok(Self::MP4),
             "mp3" => Ok(Self::MP3),
             "webp" => Ok(Self::WEBP),
-            _ => Err(DestinyFetchError::ExtFromStrErr),
+            _ => Ok(Self::UNKNOWN),
         }
     }
 }
+
+impl From<String> for Ext {
+    fn from(value: String) -> Self {
+        match &value.to_lowercase()[..] {
+            "png" => Self::PNG,
+            "jpg" | "jpeg" => Self::JPG,
+            "svg" => Self::SVG,
+            "gif" => Self::SVG,
+            "mp4" => Self::MP4,
+            "mp3" => Self::MP3,
+            "webp" => Self::WEBP,
+            _ => Self::UNKNOWN,
+        }
+    }
+}
+
 impl Ext {
-    pub fn as_ext(value: impl AsRef<str>) -> Option<Self> {
+    pub fn as_ext(value: impl AsRef<str>) -> Self {
         let s = value.as_ref();
         if let Some(i) = s.rfind('.') {
-            Ext::from_str(&s[i + 1..]).ok()
+            Ext::from_str(&s[i + 1..]).unwrap_or(Ext::UNKNOWN)
         } else {
-            None
+            Ext::UNKNOWN
         }
     }
 }
 
 #[derive(Debug, Clone, FromRow, serde::Deserialize, serde::Serialize, PartialEq, Eq)]
 pub struct ImagesRow {
-    pub id: i32,
+    pub id: i64,
     pub title: String,
-    pub size: i32,
-    pub width: i32,
-    pub height: i32,
+    pub size: i64,
+    pub width: i64,
+    pub height: i64,
     pub url: String,
-    pub timestamp_: chrono::NaiveDateTime,
-    pub ext_: Option<Ext>,
+    pub timestamp: i64,
+    pub extension: Ext,
 }
 
 #[derive(Debug, FromRow)]
 pub struct CategoriesRow {
-    pub id: i32,
+    pub id: i64,
     pub title: String,
-    pub files: i32,
-    pub subcats: i32,
+    pub files: i64,
+    pub subcats: i64,
 }
 
 #[derive(Debug, FromRow)]
 pub struct ImageCategoryRow {
-    pub image_id: i32,
-    pub category_id: i32,
+    pub image_id: i64,
+    pub category_id: i64,
 }
 
 #[derive(Debug, FromRow)]
 pub struct SubCategoryRow {
-    pub category_id: i32,
-    pub subcategory_id: i32,
+    pub category_id: i64,
+    pub subcategory_id: i64,
 }
 
 impl TryFrom<QueryResult> for CategoriesRow {
@@ -103,15 +123,15 @@ impl TryFrom<QueryResult> for CategoriesRow {
                 subcats: Some(subcats),
                 ..
             })) => Ok(CategoriesRow {
-                id: query.pageid,
+                id: query.pageid.into(),
                 title: {
                     match query.title.strip_prefix(r"Category:") {
                         Some(s) => s.into(),
                         None => query.title,
                     }
                 },
-                files,
-                subcats,
+                files: files.into(),
+                subcats: subcats.into(),
             }),
             _ => Err(super::error::DatabaseError::IntoRowConvertError)?,
         }
@@ -121,7 +141,6 @@ impl TryFrom<QueryResult> for CategoriesRow {
 impl TryFrom<QueryResult> for ImagesRow {
     type Error = DestinyFetchError;
     fn try_from(query: QueryResult) -> Result<Self> {
-        use chrono::prelude::*;
         match query.imageinfo.map(|ii| ii.into_items().into_iter().next()) {
             Some(Some(item)) => match item {
                 ImageInfoItem {
@@ -132,19 +151,19 @@ impl TryFrom<QueryResult> for ImagesRow {
                     url: Some(url),
                     timestamp: Some(timestamp),
                 } => Ok(ImagesRow {
-                    id: query.pageid,
-                    ext_: Ext::as_ext(&title_),
+                    id: query.pageid.into(),
+                    extension: Ext::as_ext(&title_),
                     title: {
                         match title_.strip_prefix(r"File:") {
                             Some(s) => s.into(),
                             None => title_,
                         }
                     },
-                    size: size_ / 1024,
-                    width,
-                    height,
+                    size: (size_ / 1024) as i64,
+                    width: width.into(),
+                    height: height.into(),
                     url,
-                    timestamp_: timestamp.naive_utc(),
+                    timestamp: timestamp.timestamp(),
                 }),
 
                 _ => Err(super::error::DatabaseError::IntoRowConvertError)?,

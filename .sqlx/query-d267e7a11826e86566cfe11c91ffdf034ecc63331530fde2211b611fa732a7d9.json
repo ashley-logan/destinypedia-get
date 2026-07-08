@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "CREATE TEMP TABLE temp_titles (title TEXT PRIMARY KEY) ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "d267e7a11826e86566cfe11c91ffdf034ecc63331530fde2211b611fa732a7d9"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "CREATE TEMP TABLE temp_ids (id INTEGER PRIMARY KEY)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "a949d351f55315166734f15e4649fb1262ee35fbff40178f263f9c5040403257"
+}

@@ -1,9 +1,7 @@
 use super::{CACHE_FILE, Cache};
 use crate::bin_modules::database::rows::ImagesRow;
 use crate::bin_modules::{DestinyFetchError, Result};
-use destinypedia::NAMESPACE::CATEGORY;
 use dirs;
-use std::collections::HashSet;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
@@ -83,4 +81,29 @@ pub async fn parse_ids_file(fpath: PathBuf) -> Result<Vec<i32>> {
     );
 
     Ok(ids)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::{Connection, sqlite::SqliteConnection};
+
+    const TEST_DB: &str = "data/dev.db";
+
+    #[sqlx::test]
+    async fn test_parse_cache() {
+        let mut conn = SqliteConnection::connect(TEST_DB)
+            .await
+            .expect("failed to connect to the test database");
+        let images: Vec<ImagesRow> = sqlx::query_as!(
+            ImagesRow,
+            r"select * from images
+            order by random()
+            limit 15"
+        )
+        .fetch_all(&mut conn)
+        .await
+        .expect("failed to query random rows from test database");
+    
+    }
 }
