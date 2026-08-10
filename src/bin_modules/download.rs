@@ -49,9 +49,6 @@ pub async fn download(mut args: DownloadArgs, conn: SqlitePool) -> Result<()> {
                 let ids = parse_ids_file(id).await?;
                 jset.spawn(validate_ids(ids, conn.clone()));
             }
-            if let Some(save) = f.from_cached {
-                jset.spawn(parse_cached_search(save));
-            }
         }
         _ => return Err(DestinyFetchError::MissingArgErr),
     }

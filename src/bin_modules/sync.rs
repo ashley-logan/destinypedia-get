@@ -6,6 +6,7 @@ use crossbeam_channel::{Receiver, RecvTimeoutError, Sender, bounded, unbounded};
 use destinypedia::NAMESPACE;
 use destinypedia::request::{PARAMS, Query};
 use destinypedia::response::{Continue, QueryResponse};
+use indicatif::{ProgressBar, ProgressStyle};
 use reqwest::{Client, Response};
 use serde_json::from_slice;
 use sqlx::sqlite::SqliteConnectOptions;
@@ -17,7 +18,7 @@ use sqlx::{
 use sqlx::{SqlitePool, query, sqlite::SqlitePoolOptions};
 use std::collections::HashMap;
 use std::fs;
-use std::path;
+use std::path::{self, Path};
 use std::sync::Arc;
 use tokio::task;
 use tracing::{self, Level, debug_span};
@@ -28,8 +29,7 @@ const CATEGORY_IMAGES_ID: i32 = 364;
 static DEV_DB_URL: &str = "data/dev.db";
 const BIND_LIMIT: u16 = 32766;
 
-#[tracing::instrument]
-pub fn create_backup<T: AsRef<path::Path> + std::fmt::Debug>(original: T) -> Result<path::PathBuf> {
+pub fn create_backup(original: impl AsRef<Path>) -> Result<path::PathBuf> {
     let backup: path::PathBuf = original.as_ref().with_added_extension("bak");
     fs::rename(original, backup.as_path())?;
     Ok(backup)
@@ -41,18 +41,74 @@ pub async fn run_migrations(pool: &SqlitePool) -> Result<()> {
     Ok(())
 }
 
-pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<()> {
+/* Conditions that will automatically trigger a database sync
+    1. cache file does not exist
+    2. database file does not exist
+    3. either cache value for last_sync_at and/or last_sync_rows_written is null
+    4. cache timestamp for last_sync_at is two or more weeks old
+    5. cache value for last_sync_rows_written does not match the total number of rows in the current database
+*/
+
+#[tracing::instrument]
+pub async fn database_needs_synced(pool: SqlitePool, db_path: &Path, cache: &super::Cache) -> bool {
+    if !db_path.exists() {
+        tracing::debug!(
+            "no database found at the target path: {}",
+            db_path.display()
+        );
+        return true;
+    }
+
+    match (cache.data.last_sync_at, cache.data.last_sync_rows_written) {
+        (Some(tstamp), Some(size)) => {
+            if chrono::Utc::now() - tstamp >= chrono::TimeDelta::weeks(2) {
+                tracing::debug!("current database is more than 2 weeks old: {}", tstamp);
+                return true;
+            }
+            let sz: i64 = size.try_into().unwrap_or(-1);
+            if !super::database::database_size_equals(sz, pool).await {
+                tracing::debug!("number of rows in current database != previous sync rows written");
+                return true;
+            }
+        }
+        (Some(_), None) => {
+            tracing::debug!("number of rows written in last sync unknown");
+            return true;
+        }
+        (None, Some(_)) => {
+            tracing::debug!("timestamp of last sync unknown");
+            return true;
+        }
+        _ => {
+            tracing::debug!("cache indicates no previous sync");
+            return true;
+        }
+    }
+    false
+}
+
+pub async fn sync(pool: SqlitePool, starting_pageid: Option<i32>) -> Result<u64> {
     use tokio::task::Id;
     let span = tracing::debug_span!("attempting to sync the database");
     let _guard = span.enter();
     let start_t = tokio::time::Instant::now();
+    let spinner = ProgressBar::new_spinner().with_message("Syncing the image database..");
+    spinner.enable_steady_tick(tokio::time::Duration::from_millis(120));
+    spinner.set_style(
+        ProgressStyle::with_template("{msg} {elapsed} {spinner:.blue}")
+            .unwrap_or(ProgressStyle::default_spinner())
+            .tick_strings(&[
+                "[    ]", "[=   ]", "[==  ]", "[=== ]", "[====]", "[ ===]", "[  ==]", "[   =]",
+                "[    ]", "[   =]", "[  ==]", "[ ===]", "[====]", "[=== ]", "[==  ]", "[=   ]",
+            ]),
+    );
 
-    let opts = SqliteConnectOptions::new()
-        .foreign_keys(false)
-        .create_if_missing(true)
-        .filename(db_url);
-    let pool = SqlitePoolOptions::new().connect_with(opts).await?;
-    tracing::debug!("connection pool created");
+    // let opts = SqliteConnectOptions::new()
+    //     .foreign_keys(false)
+    //     .create_if_missing(true)
+    //     .filename(db_url);
+    // let pool = SqlitePoolOptions::new().connect_with(opts).await?;
+    // tracing::debug!("connection pool created");
 
     run_migrations(&pool).await?;
 
@@ -149,8 +205,9 @@ pub async fn sync(db_url: &str, starting_pageid: Option<i32>) -> Result<()> {
         start_t.elapsed().as_secs_f32(),
         rows_written
     );
+    spinner.finish_with_message("Done");
 
-    Ok(())
+    Ok(rows_written)
 }
 
 /// intial queries are built and send into the params channel
@@ -422,7 +479,7 @@ async fn write_worker(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bin_modules::get;
+    use crate::bin_modules::{cache, get};
     use better_tracing::{Registry, fmt, prelude::*};
     use crossbeam_channel::{Receiver, Sender, unbounded};
     use std::fs;
@@ -432,8 +489,8 @@ mod tests {
     const ARMOR_CAT_ID: i32 = 33671;
     const ROOT_MEMBERS: [i32; 5] = [363, 369, 31716, 375, 510];
 
-    fn remove_dev_db() {
-        let path = PathBuf::from_str("data/dev.db").unwrap();
+    fn remove_test_db() {
+        let path = PathBuf::from_str("test-data/test.db").unwrap();
         if fs::exists(&path).unwrap() {
             let _ = fs::remove_file(path);
         }
@@ -447,16 +504,45 @@ mod tests {
         run_migrations(&mut conn).await.expect("migrations failed");
     }
 
-    #[tokio::test]
+    #[sqlx::test]
     async fn test_sync() {
         let stdout = fmt::layer().with_test_writer().pretty();
         let sub = Registry::default().with(stdout);
         tracing::subscriber::set_global_default(sub).unwrap();
-        let handle = tokio::task::spawn(sync("data/dev.db", None));
+        remove_test_db();
+        let conn = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::default()
+                .foreign_keys(false)
+                .filename("test-data/test.db")
+                .create_if_missing(true),
+        )
+        .await
+        .expect("failed to connect to test database");
+        let handle = tokio::task::spawn(sync(conn, None));
         let r = handle.await.unwrap();
         dbg!(&r);
 
         assert!(r.is_ok())
+    }
+
+    #[sqlx::test]
+    async fn test_database_check() {
+        remove_test_db();
+        let mut cache = cache::Cache::new().expect("unable to create new cache");
+        let db_path = PathBuf::from("test-data/test.db");
+        let conn = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::default()
+                .foreign_keys(false)
+                .filename(&db_path)
+                .create_if_missing(true),
+        )
+        .await
+        .expect("failed to connect to database");
+        let rows = sync(conn.clone(), None).await.expect("sync failed");
+        cache.data.last_sync_rows_written = Some(rows);
+        cache.data.last_sync_at = Some(chrono::Utc::now());
+        let res = database_needs_synced(conn, &db_path, &cache).await;
+        assert_eq!(res, false);
     }
 
     #[tokio::test]
@@ -472,8 +558,9 @@ mod tests {
             send.send(id).await.unwrap();
         }
 
-        drop(send);
         h.await.unwrap().unwrap();
+
+        drop(send);
 
         while let Ok((id, _bytes)) = recv2.recv() {
             dbg!(format!("fetched page #{}", id));
@@ -494,9 +581,9 @@ mod tests {
             Arc::new(Client::builder().user_agent(USER_AGENT).build().unwrap());
         let h = tokio::spawn(request_worker(client, recv, send2));
 
-        drop(send);
-
         h.await.unwrap().unwrap();
+
+        drop(send);
 
         while let Ok((id, _bytes)) = recv2.recv() {
             dbg!(id);
@@ -519,13 +606,14 @@ mod tests {
             let (recv_copy, send_copy) = (recv.clone(), send2.clone());
             jset.spawn(request_worker(Arc::clone(&client), recv_copy, send_copy));
         }
+
+        let r = jset.join_all().await;
+
         drop(client);
 
         drop(send);
         drop(recv);
         drop(send2);
-
-        let r = jset.join_all().await;
 
         while let Ok((id, _bytes)) = recv2.recv() {
             if id % 100 == 0 {

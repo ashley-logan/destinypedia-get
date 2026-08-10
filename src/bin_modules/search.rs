@@ -2,20 +2,23 @@ use crate::bin_modules::cli::{DetailLevel, ResultType, SearchArgs};
 use crate::bin_modules::database::rows::{CategoriesRow, ImagesRow};
 use crate::{DestinyFetchError, Result};
 use futures::TryStreamExt;
-use sqlx::SqlitePool;
+use sqlx::Pool;
 use sqlx::{QueryBuilder, sqlite::Sqlite};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::io::{self, AsyncWrite, AsyncWriteExt};
 
-pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
-    let mut wtr: Box<dyn AsyncWrite + Send + Unpin>;
+pub async fn search(args: SearchArgs, conn: Pool<Sqlite>) -> Result<()> {
+    let mut wtr: Box<dyn AsyncWrite + Send + Unpin>; // creates the writer that will wriite the results of the search
+
     if let Some(f) = &args.output {
-        wtr = Box::new(fs::File::create(f).await?);
+        wtr = Box::new(fs::File::create(f).await?); // write to the newly created filepath
     } else {
-        wtr = Box::new(io::stdout());
+        wtr = Box::new(io::stdout()); // write to stdout
     }
 
+    // if the search results will include the names of Categories, then create the
+    // category result format according to the user's preferences
     if let ResultType {
         categories: true, ..
     }
@@ -41,12 +44,15 @@ pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
                 )
             },
         };
-        let mut cats_q = construct_categories_query(&args);
-        let mut cat_stream = cats_q.build_query_as::<'_, CategoriesRow>().fetch(conn);
+        let mut cats_q = construct_categories_query(&args); // create a sql query for the database based on the search filters
+        let mut cat_stream = cats_q.build_query_as::<'_, CategoriesRow>().fetch(&conn); // get a stream of matching categories
         while let Ok(Some(cat)) = cat_stream.try_next().await {
-            let _ = wtr.write_all(cat_fmt(cat).as_bytes()).await?;
+            let _ = wtr.write_all(cat_fmt(cat).as_bytes()).await?; // write the resulting category results to the writer
         }
     }
+
+    // if the search results will include the names of Images, then create the
+    // image result format according to the user's preferences
     if let ResultType { images: true, .. } | ResultType { all: true, .. } = &args.result_type {
         let img_fmt = match &args.detail_level {
             Some(DetailLevel { titles: true, .. }) => {
@@ -68,10 +74,10 @@ pub async fn search(args: SearchArgs, conn: &SqlitePool) -> Result<()> {
                 )
             },
         };
-        let mut images_q = construct_categories_query(&args);
-        let mut img_stream = images_q.build_query_as::<'_, ImagesRow>().fetch(conn);
+        let mut images_q = construct_categories_query(&args); // create the sql query for the database based on the search filters
+        let mut img_stream = images_q.build_query_as::<'_, ImagesRow>().fetch(&conn); // get a stream of matching images
         while let Ok(Some(img)) = img_stream.try_next().await {
-            let _ = wtr.write_all(img_fmt(img).as_bytes()).await?;
+            let _ = wtr.write_all(img_fmt(img).as_bytes()).await?; // write the resulting image results to the writer
         }
     }
 
@@ -84,6 +90,7 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
     q.push("WHERE LOWER(title) LIKE ");
     q.push_bind(format!("%{}% ", &args.search.to_lowercase()));
 
+    // filter for results who have args.in_category as a parent catgeory
     if let Some(c) = &args.in_category {
         q.push(
             r#"AND EXISTS (
@@ -96,6 +103,7 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
         q.push("\n)");
     }
 
+    // filter for images/files who have one of the specified extensions
     if let Some(v) = &args.ftype {
         q.push("AND extension IN (");
         let mut sep = q.separated(", ");
@@ -209,8 +217,8 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
 
 fn construct_categories_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
     let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM categories ");
-    q.push("WHERE title LIKE ? ");
-    q.push_bind(format!("%{}% ", args.search));
+    q.push("WHERE LOWER(title) LIKE ? ");
+    q.push_bind(format!("%{}% ", args.search.to_lowercase()));
     if let Some(ic) = &args.in_category {
         q.push(
             r#"
@@ -277,7 +285,7 @@ mod tests {
     async fn test_simple_sql1() {
         let args: SearchArgs = simple_image_search();
         let test: QueryBuilder<Sqlite> = construct_images_query(&args);
-        let exp = "SELECT * FROM images WHERE title LIKE ? ORDER BY title";
+        let exp = "SELECT * FROM images WHERE LOWER(title) LIKE ? ORDER BY title";
         assert_eq!(test.into_string(), exp);
     }
 }

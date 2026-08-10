@@ -7,17 +7,17 @@ use std::path::{Path, PathBuf};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt};
 use tokio::{fs, io};
 
-pub async fn parse_cached_search(name: String) -> Result<Vec<ImagesRow>> {
-    let mut cache_f = dirs::cache_dir().ok_or(DestinyFetchError::CachePathErr)?;
-    cache_f.push(CACHE_FILE);
-    let bytes = fs::read(&cache_f).await?;
-    let v: Cache = serde_json::from_slice(&bytes[..])?;
-    let images: Option<&Vec<ImagesRow>> = v.cached_searches.get(&name);
-    match images {
-        Some(v) => Ok(v.to_vec()),
-        None => Err(DestinyFetchError::NotCachedErr),
-    }
-}
+// pub async fn parse_cached_search(name: String) -> Result<Vec<ImagesRow>> {
+//     let mut cache_f = dirs::cache_dir().ok_or(DestinyFetchError::CachePathErr)?;
+//     cache_f.push(CACHE_FILE);
+//     let bytes = fs::read(&cache_f).await?;
+//     let v: Cache = serde_json::from_slice(&bytes[..])?;
+//     let images: Option<&Vec<ImagesRow>> = v.cached_searches.get(&name);
+//     match images {
+//         Some(v) => Ok(v.to_vec()),
+//         None => Err(DestinyFetchError::NotCachedErr),
+//     }
+// }
 
 pub fn titles_from_file(path: PathBuf) -> Result<Vec<String>> {
     let mut titles: Vec<String> = vec![];
@@ -104,6 +104,5 @@ mod tests {
         .fetch_all(&mut conn)
         .await
         .expect("failed to query random rows from test database");
-    
     }
 }

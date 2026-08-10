@@ -1,0 +1,6 @@
+bin_modules::cache::tests::test_store_images
+bin_modules::search::tests::test_simple_sql1
+bin_modules::sync::tests::test_empty_request_worker
+bin_modules::sync::tests::test_high_traffic_req_worker
+bin_modules::sync::tests::test_request_worker
+bin_modules::sync::tests::test_sync

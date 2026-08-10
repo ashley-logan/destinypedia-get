@@ -6,6 +6,7 @@ use clap::Parser;
 use dirs;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Sqlite, SqlitePool};
+use std::path::Path;
 use std::{fs, path::PathBuf};
 
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
@@ -13,7 +14,7 @@ pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!();
 #[tokio::main]
 async fn main() {
     let _cli: cli::CLI = cli::CLI::parse();
-    let cache: Cache = match Cache::open_or_create(None) {
+    let mut cache: Cache = match Cache::open_default(true) {
         Ok(cache) => cache,
         Err(_) => {
             println!("Unable to access cache directory");
@@ -29,136 +30,159 @@ async fn main() {
         }
     };
 
-    let mut needs_sync = match cache.last_sync_at {
-        Some(dt) => (Utc::now() - TimeDelta::weeks(2) >= dt) | !db_path.exists(),
-        None => true,
-    };
+    let pool = SqlitePool::connect_lazy_with(
+        SqliteConnectOptions::default()
+            .foreign_keys(false)
+            .filename(&db_path),
+    );
 
-    match _cli.cmd {
-        Command::Search(args) => {
-            if needs_sync {
-                match sync_destinypedia().await {
-                    Ok(()) => {
-                        println!("Database sync successful!")
-                    }
-                    Err(e) => {
-                        println!(
-                            "ERROR: Failed to sync database with error: {}",
-                            e.to_string()
-                        );
-                        return;
-                    }
-                }
+    /* Conditions that will automatically trigger a database sync
+        1. cache file does not exist
+        2. database file does not exist
+        3. either cache value for last_sync_at and/or last_sync_rows_written is null
+        4. cache timestamp for last_sync_at is two or more weeks old
+        5. cache value for last_sync_rows_written does not match the total number of rows in the current database
+    */
+
+    let needs_sync = sync::database_needs_synced(pool.clone(), &db_path, &cache).await;
+
+    if needs_sync | matches!(&_cli.cmd, Command::Sync) {
+        match sync_destinypedia(&mut cache, &db_path).await {
+            Ok(()) => {
+                println!("Database sync successful!")
             }
-            let pool = SqlitePool::connect_lazy_with(
-                SqliteConnectOptions::default()
-                    .foreign_keys(false)
-                    .filename(&db_path),
-            );
-            let result = search::search(args, &pool).await;
-            match result {
-                Ok(()) => {
-                    println!("Search successful!")
-                }
-                Err(DestinyFetchError::Quit) => {
-                    println!("Unable to complete search due to early shutdown")
-                }
-                Err(e) => {
-                    println!(
-                        "ERROR: Failed to complete search with error: {}",
-                        e.to_string()
-                    );
-                }
-            }
-        }
-        Command::Download(args) => {
-            if needs_sync {
-                match sync_destinypedia().await {
-                    Ok(()) => {
-                        println!("Database sync successful!")
-                    }
-                    Err(e) => {
-                        println!(
-                            "ERROR: Failed to sync database with error: {}",
-                            e.to_string()
-                        );
-                        return;
-                    }
-                }
-            }
-            let pool = SqlitePool::connect_lazy_with(
-                SqliteConnectOptions::default()
-                    .foreign_keys(false)
-                    .filename(&db_path),
-            );
-            let result = download::download(args, pool).await;
-            match result {
-                Ok(()) => {
-                    println!("Download successful!")
-                }
-                Err(DestinyFetchError::Quit) => {
-                    println!("Unable to complete download due to early shutdown")
-                }
-                Err(e) => {
-                    println!(
-                        "ERROR: Failed to complete download with error: {}",
-                        e.to_string()
-                    );
-                }
-            }
-        }
-        Command::Sync => {
-            let result = sync_destinypedia().await;
-            match result {
-                Ok(()) => {
-                    println!("Database sync successful!")
-                }
-                Err(e) => {
-                    println!(
-                        "ERROR: Failed to sync database with error: {}",
-                        e.to_string()
-                    );
-                }
+            Err(e) => {
+                println!(
+                    "ERROR: Failed to sync database with error: {}",
+                    e.to_string()
+                );
+                return;
             }
         }
     }
+
+    match _cli.cmd {
+        Command::Search(args) => match search::search(args, pool).await {
+            Ok(()) => {
+                println!("Search successful!")
+            }
+            Err(DestinyFetchError::Quit) => {
+                println!("Unable to complete search due to early shutdown")
+            }
+            Err(e) => {
+                println!(
+                    "ERROR: Failed to complete search with error: {}",
+                    e.to_string()
+                );
+            }
+        },
+        Command::Download(args) => match download::download(args, pool).await {
+            Ok(()) => {
+                println!("Download successful!")
+            }
+            Err(DestinyFetchError::Quit) => {
+                println!("Unable to complete download due to early shutdown")
+            }
+            Err(e) => {
+                println!(
+                    "ERROR: Failed to complete download with error: {}",
+                    e.to_string()
+                );
+            }
+        },
+        _ => (),
+    }
 }
 
-async fn sync_destinypedia() -> Result<()> {
-    let db = dirs::data_local_dir()
-        .or(dirs::data_dir())
-        .ok_or(DestinyFetchError::InvalidPathErr)?
-        .join("destiny_fetch.db");
-    let tmp = db.with_added_extension("tmp");
+async fn sync_destinypedia(cache: &mut Cache, db: impl AsRef<Path>) -> Result<()> {
+    // create temporary database as the write target for sync
+    let tmp = db.as_ref().to_path_buf().with_added_extension("tmp");
 
     let backup: Option<PathBuf> = {
         if fs::exists(&db)? {
+            // if a database already exists rename as backup
             sync::create_backup(&db).ok()
         } else {
+            // otherwise do nothing
             None
         }
     };
 
-    let sync_result = sync::sync(&tmp.to_string_lossy(), None).await;
+    let pool = SqlitePool::connect_lazy_with(
+        SqliteConnectOptions::default()
+            .foreign_keys(false)
+            .create_if_missing(true)
+            .filename(&tmp),
+    );
+
+    let sync_result = sync::sync(pool, None).await;
 
     match sync_result {
-        Ok(map) => {
-            fs::rename(tmp, db)?;
+        Ok(rows_inserted) => {
+            // if sync succeeded replace previous database with fresh database + update cache
+
+            // destiny_fetch.db.tmp --> destiny_fetch.db
+            fs::rename(tmp, &db)?;
 
             if let Some(p) = backup {
+                // remove old database
                 fs::remove_file(p)?;
             }
 
-            todo!("turn map into cache payload")
+            // update cache
+            cache.data.last_sync_at = Some(chrono::Utc::now());
+            cache.data.last_sync_rows_written = Some(rows_inserted);
+            cache.write_cache()?;
         }
         Err(e) => {
+            // if sync failed restore backup database
             dbg!(e);
             if let Some(p) = backup {
+                // destiny_fetch.db.bak --> destiny_fetch.db
                 fs::rename(p, db)?;
             }
+            // remove failed database
             let _ = fs::remove_file(tmp);
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+    use tempfile::{NamedTempFile, TempDir};
+
+    #[tokio::test]
+    async fn test_sync() {
+        let cli =
+            cli::CLI::try_parse_from(["destiny_fetch", "sync"]).expect("unable to parse command");
+        let mut test_cache = Cache::new().expect("failed to create cache");
+        let test_db = PathBuf::from_str("test-data/test.db").unwrap();
+        sync_destinypedia(&mut test_cache, test_db)
+            .await
+            .expect("sync failed");
+        println!("Created test cache at {}", test_cache.path.display());
+        assert!(&test_cache.data.last_sync_at.is_some());
+        assert!(&test_cache.data.last_sync_rows_written.is_some());
+        let path = test_cache
+            .remove_cache()
+            .expect("failed to remove test cache");
+        println!("Removed test cache at {}", path.display());
+    }
+}
+
+#[tokio::test]
+async fn test_search_simple() {
+    let cli_ = cli::CLI::try_parse_from(["destiny_fetch", "search", "-I", "exotic"])
+        .expect("unable to parse search command");
+    // assert!(matches!(cli::Command::Search(_), cli_.))
+    let mut test_cache = Cache::new().expect("failed to create test cache");
+    let test_db = PathBuf::from("test-data/test.db");
+    sync_destinypedia(&mut test_cache, test_db)
+        .await
+        .expect("failed to sync database");
 }
