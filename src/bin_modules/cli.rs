@@ -43,15 +43,6 @@ fn parse_as_utc(s: &str) -> Result<DateTime<Utc>> {
     } else {
         Err(DestinyFetchError::TimestampArgErr)
     }
-
-    // if let Ok(dt) = DateTime::<Local>::parse_from_str(s, "%Y-%m-%d %H:%M") {
-    //     Ok()
-    // } else {
-    //     match NaiveDate::parse_from_str(s, "%Y-%m-%d") {
-    //         Ok(dt) => Ok(dt.and_time(NaiveTime::from_num_seconds_from_midnight_opt(0, 0).unwrap())),
-    //         Err(e) => Err(DestinyFetchError::InvalidTimestampErr(e)),
-    //     }
-    // }
 }
 
 #[derive(Debug, Parser, PartialEq, Eq)]

@@ -2,7 +2,7 @@ pub mod bin_modules;
 use bin_modules::cli::Command;
 use bin_modules::{Cache, DestinyFetchError, Result, cli, database, download, search, sync};
 use chrono::{DateTime, TimeDelta, Utc};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 use dirs;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Sqlite, SqlitePool};
@@ -62,8 +62,8 @@ async fn main() {
     }
 
     match _cli.cmd {
-        Command::Search(args) => match search::search(args, pool).await {
-            Ok(()) => {
+        Command::Search(args) => match search::search(&args, pool).await {
+            Ok(_) => {
                 println!("Search successful!")
             }
             Err(DestinyFetchError::Quit) => {
@@ -151,17 +151,15 @@ async fn sync_destinypedia(cache: &mut Cache, db: impl AsRef<Path>) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
 
     use super::*;
-    use tempfile::{NamedTempFile, TempDir};
 
     #[tokio::test]
     async fn test_sync() {
         let cli =
             cli::CLI::try_parse_from(["destiny_fetch", "sync"]).expect("unable to parse command");
         let mut test_cache = Cache::new().expect("failed to create cache");
-        let test_db = PathBuf::from_str("test-data/test.db").unwrap();
+        let test_db = PathBuf::from("test-data/test.db");
         sync_destinypedia(&mut test_cache, test_db)
             .await
             .expect("sync failed");
@@ -179,10 +177,24 @@ mod tests {
 async fn test_search_simple() {
     let cli_ = cli::CLI::try_parse_from(["destiny_fetch", "search", "-I", "exotic"])
         .expect("unable to parse search command");
-    // assert!(matches!(cli::Command::Search(_), cli_.))
+    dbg!(&cli_);
+    assert!(matches!(cli_.cmd, cli::Command::Search(_)));
     let mut test_cache = Cache::new().expect("failed to create test cache");
     let test_db = PathBuf::from("test-data/test.db");
-    sync_destinypedia(&mut test_cache, test_db)
+    sync_destinypedia(&mut test_cache, &test_db)
         .await
         .expect("failed to sync database");
+    if let cli::Command::Search(args) = cli_.cmd {
+        let conn = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::default()
+                .create_if_missing(true)
+                .foreign_keys(true)
+                .filename(&test_db),
+        )
+        .await
+        .expect("unable to create connection pool for test db");
+        search::search(&args, conn).await.expect("search failed");
+    } else {
+        panic!("command could not be parsed as search args: {:?}", cli_);
+    }
 }
