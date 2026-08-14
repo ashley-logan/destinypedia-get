@@ -5,6 +5,7 @@ pub mod get;
 pub mod sync;
 pub use cache::{CACHE_FILE, Cache};
 mod logging;
+pub mod store;
 pub use logging::setup_logging;
 pub mod download;
 pub mod input;
@@ -62,6 +63,9 @@ pub enum DestinyFetchError {
     #[from(skip)]
     #[display("ERROR: No cache found")]
     CachePathErr,
+    #[from(skip)]
+    #[display("ERROR: Cannot find user's app data directory")]
+    AppDataPathErr,
     #[from(skip)]
     #[display("ERROR: No cached data matching name found")]
     NotCachedErr,

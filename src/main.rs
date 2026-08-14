@@ -158,12 +158,12 @@ mod tests {
     async fn test_sync() {
         let cli =
             cli::CLI::try_parse_from(["destiny_fetch", "sync"]).expect("unable to parse command");
+        assert!(matches!(cli.cmd, cli::Command::Sync));
         let mut test_cache = Cache::new().expect("failed to create cache");
         let test_db = PathBuf::from("test-data/test.db");
         sync_destinypedia(&mut test_cache, test_db)
             .await
             .expect("sync failed");
-        println!("Created test cache at {}", test_cache.path.display());
         assert!(&test_cache.data.last_sync_at.is_some());
         assert!(&test_cache.data.last_sync_rows_written.is_some());
         let path = test_cache
@@ -171,30 +171,40 @@ mod tests {
             .expect("failed to remove test cache");
         println!("Removed test cache at {}", path.display());
     }
-}
 
-#[tokio::test]
-async fn test_search_simple() {
-    let cli_ = cli::CLI::try_parse_from(["destiny_fetch", "search", "-I", "exotic"])
+    #[tokio::test]
+    async fn test_search_simple() {
+        let cli_ = cli::CLI::try_parse_from([
+            "destiny_fetch",
+            "search",
+            "-I",
+            "exotic",
+            "--output",
+            "test-data/test_search.txt",
+        ])
         .expect("unable to parse search command");
-    dbg!(&cli_);
-    assert!(matches!(cli_.cmd, cli::Command::Search(_)));
-    let mut test_cache = Cache::new().expect("failed to create test cache");
-    let test_db = PathBuf::from("test-data/test.db");
-    sync_destinypedia(&mut test_cache, &test_db)
-        .await
-        .expect("failed to sync database");
-    if let cli::Command::Search(args) = cli_.cmd {
-        let conn = sqlx::SqlitePool::connect_with(
-            SqliteConnectOptions::default()
-                .create_if_missing(true)
-                .foreign_keys(true)
-                .filename(&test_db),
-        )
-        .await
-        .expect("unable to create connection pool for test db");
-        search::search(&args, conn).await.expect("search failed");
-    } else {
-        panic!("command could not be parsed as search args: {:?}", cli_);
+        dbg!(&cli_);
+        // assert!(matches!(cli_.cmd, cli::Command::Search(_)));
+        assert!(matches!(
+            cli_.cmd,
+            cli::Command::Search(cli::SearchArgs {
+                output: Some(_),
+                ..
+            })
+        ));
+        let test_db = PathBuf::from("test-data/STATIC_TEST.db");
+        if let cli::Command::Search(args) = cli_.cmd {
+            let conn = sqlx::SqlitePool::connect_with(
+                SqliteConnectOptions::default()
+                    .foreign_keys(true)
+                    .filename(&test_db),
+            )
+            .await
+            .expect("unable to create connection pool for test db");
+            search::search(&args, conn).await.expect("search failed");
+        } else {
+            panic!("command could not be parsed as search args: {:?}", cli_);
+        }
+        let _ = fs::remove_file(Path::new("test-data/test_search.txt"));
     }
 }

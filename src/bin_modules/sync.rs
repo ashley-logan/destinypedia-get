@@ -95,11 +95,12 @@ pub async fn sync(pool: SqlitePool, starting_pageid: Option<i32>) -> Result<u64>
     let spinner = ProgressBar::new_spinner().with_message("Syncing the image database..");
     spinner.enable_steady_tick(tokio::time::Duration::from_millis(120));
     spinner.set_style(
-        ProgressStyle::with_template("{msg} {elapsed} {spinner:.blue}")
+        ProgressStyle::with_template("{msg} {elapsed} {spinner:.green}")
             .unwrap_or(ProgressStyle::default_spinner())
             .tick_strings(&[
                 "[    ]", "[=   ]", "[==  ]", "[=== ]", "[====]", "[ ===]", "[  ==]", "[   =]",
                 "[    ]", "[   =]", "[  ==]", "[ ===]", "[====]", "[=== ]", "[==  ]", "[=   ]",
+                "[====]",
             ]),
     );
 
@@ -227,7 +228,7 @@ async fn request_worker(
 ) -> Result<()> {
     use tokio::time;
     loop {
-        match time::timeout(time::Duration::from_secs(5), recv.recv()).await {
+        match time::timeout(time::Duration::from_secs(3), recv.recv()).await {
             Ok(Ok(id)) => {
                 let mut params: PARAMS<Query> =
                     super::get::get_category_members_sync_params(id.clone())?;

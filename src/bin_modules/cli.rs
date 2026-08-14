@@ -1,11 +1,12 @@
 use super::{DestinyFetchError, Result};
-use crate::bin_modules::database::rows::Ext;
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, ParseError, Utc};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc};
 use clap::{
     Args, Parser, Subcommand, ValueEnum,
     builder::{PathBufValueParser, TypedValueParser},
 };
-use std::{ops::Mul, path::PathBuf};
+use std::path::PathBuf;
+
+pub use crate::bin_modules::database::rows::Ext;
 
 // helper function for path directory validation
 fn parse_as_dir(p: PathBuf) -> Result<PathBuf> {
@@ -40,6 +41,11 @@ fn parse_as_utc(s: &str) -> Result<DateTime<Utc>> {
             .single()
             .ok_or(DestinyFetchError::TimestampArgErr)?;
         Ok(local.to_utc())
+    } else if let Ok(tstamp) = s.parse::<i64>() {
+        // try to parse argument as raw timestamp
+        Utc.timestamp_opt(tstamp, 0)
+            .single()
+            .ok_or(DestinyFetchError::TimestampArgErr)
     } else {
         Err(DestinyFetchError::TimestampArgErr)
     }
@@ -68,12 +74,16 @@ pub struct SearchArgs {
     pub in_category: Option<String>, // only show results in this category
     #[arg(long, short = 'o')]
     pub output: Option<PathBuf>, // --output [-o] batch1.json
+    #[arg(long)]
+    pub save: bool,
+    #[arg(long)]
+    pub save_as: Option<String>,
     #[arg(long, short = 'n')]
     pub limit: Option<i32>, // show this many results; default all
     #[command(flatten)]
     pub detail_level: Option<DetailLevel>, // amount of extra information provided for each result
     #[arg(long, value_enum)]
-    pub ftype: Option<Vec<Ext>>, // only show images with these filetypes, default all
+    pub ftype: Option<Ext>, // only show images with this filetype, default all
     #[arg(long)]
     pub maxsize: Option<i32>,
     #[arg(long)]
@@ -220,7 +230,6 @@ pub struct Pattern {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
 
     use super::*;
     use clap::{Command, CommandFactory};
@@ -265,8 +274,6 @@ mod tests {
             "--maxsize",
             "5000",
             "--ftype",
-            "png",
-            "--ftype",
             "jpg",
             "--before",
             "2020-12-25",
@@ -282,9 +289,11 @@ mod tests {
                 },
                 in_category: Some("Images of Hive".into()),
                 output: None,
+                save: false,
+                save_as: None,
                 limit: None,
                 detail_level: None,
-                ftype: Some(vec![Ext::PNG, Ext::JPG]),
+                ftype: Some(Ext::JPG),
                 maxsize: Some(5000),
                 minsize: None,
                 before: NaiveDateTime::parse_from_str("2020-12-25 00:00", "%Y-%m-%d %H:%M")

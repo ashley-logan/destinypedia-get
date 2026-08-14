@@ -1,5 +1,6 @@
 use crate::bin_modules::cli::{DetailLevel, ResultType, SearchArgs};
 use crate::bin_modules::database::rows::{CategoriesRow, ImagesRow};
+use crate::bin_modules::store;
 use crate::{DestinyFetchError, Result};
 use futures::TryStreamExt;
 use sqlx::Pool;
@@ -12,33 +13,37 @@ fn write_categories(
     wtr: &mut Box<dyn std::io::Write>,
     categories: &[CategoriesRow],
     format_detail: &Option<DetailLevel>,
+    limit: &Option<i32>,
 ) -> Result<()> {
+    let limit: usize = limit
+        .and_then(|i| i.try_into().ok())
+        .unwrap_or(categories.len());
     match format_detail {
         Some(DetailLevel { titles: true, .. }) => {
-            for row in categories {
+            for row in categories.iter().take(limit) {
                 writeln!(wtr, "{}", row.title)?;
             }
         }
         Some(DetailLevel { ids: true, .. }) => {
-            for row in categories {
+            for row in categories.iter().take(limit) {
                 writeln!(wtr, "{}", row.id)?;
             }
         }
         Some(DetailLevel { detailed: true, .. }) => {
-            for row in categories {
+            for row in categories.iter().take(limit) {
                 writeln!(
                     wtr,
-                    "{:<5}, {:<30}, {:<3}, {:<3}",
+                    "{:<}, {:<}, {:<}, {:<}",
                     row.id, row.title, row.files, row.subcats
                 )?;
             }
         }
         Some(DetailLevel { default: true, .. }) | _ => {
-            for row in categories {
+            for row in categories.iter().take(limit) {
                 writeln!(
                     wtr,
-                    "{:<30}, images{:<4}, subcategories{:<4}",
-                    row.title, row.files, row.subcats
+                    "({}) {:<}, images={:<}, subcategories={:<}",
+                    row.id, row.title, row.files, row.subcats
                 )?;
             }
         }
@@ -51,32 +56,36 @@ fn write_images(
     wtr: &mut Box<dyn std::io::Write>,
     images: &[ImagesRow],
     format_detail: &Option<DetailLevel>,
+    limit: &Option<i32>,
 ) -> Result<()> {
+    let limit: usize = limit
+        .and_then(|i| i.try_into().ok())
+        .unwrap_or(images.len());
     match format_detail {
         Some(DetailLevel { titles: true, .. }) => {
-            for row in images {
+            for row in images.iter().take(limit) {
                 writeln!(wtr, "{}", row.id)?;
             }
         }
         Some(DetailLevel { ids: true, .. }) => {
-            for row in images {
+            for row in images.iter().take(limit) {
                 writeln!(wtr, "{}", row.id)?;
             }
         }
         Some(DetailLevel { detailed: true, .. }) => {
-            for row in images {
+            for row in images.iter().take(limit) {
                 writeln!(
                     wtr,
-                    "{:<5}, {:<30}, {:<5}, {:<5}, {:<10}, {:<4}, {}",
+                    "{:<}, {:<}, {:<}, {:<}, {:<}, {:<}, {}",
                     row.id, row.title, row.width, row.height, row.size, row.extension, row.url
                 )?;
             }
         }
         Some(DetailLevel { default: true, .. }) | _ => {
-            for row in images {
+            for row in images.iter().take(limit) {
                 writeln!(
                     wtr,
-                    "({:<8}) {:<30}, {:<4}x{:<4}, {:<10}KiB, {:<5}",
+                    "({:<}) {:<}, {:<}x{:<}, {:<}KiB, {:<}",
                     row.id, row.title, row.width, row.height, row.size, row.extension
                 )?;
             }
@@ -113,11 +122,15 @@ pub async fn search(args: &SearchArgs, conn: Pool<Sqlite>) -> Result<()> {
     }
 
     if let Some(v) = category_results {
-        write_categories(&mut wtr, &v[..], &args.detail_level)?;
+        write_categories(&mut wtr, &v[..], &args.detail_level, &args.limit)?;
     }
 
     if let Some(v) = image_results {
-        write_images(&mut wtr, &v[..], &args.detail_level)?;
+        write_images(&mut wtr, &v[..], &args.detail_level, &args.limit)?;
+        if args.save || args.save_as.is_some() {
+            let save_name = store::store_images(&v[..], &args.save_as)?;
+            println!("Saved search results to {}", save_name.display());
+        }
     }
 
     Ok(())
@@ -126,6 +139,8 @@ pub async fn search(args: &SearchArgs, conn: Pool<Sqlite>) -> Result<()> {
 pub async fn fetch_images(args: &SearchArgs, pool: Pool<Sqlite>) -> Result<Option<Vec<ImagesRow>>> {
     let search: String = format!("%{}%", args.search);
     let lim = args.limit.unwrap_or(500);
+    let after: Option<i64> = args.after.map(|dt| dt.timestamp());
+    let before: Option<i64> = args.before.map(|dt| dt.timestamp());
     let qry_result = sqlx::query_as!(
         ImagesRow,
         " \
@@ -145,21 +160,23 @@ pub async fn fetch_images(args: &SearchArgs, pool: Pool<Sqlite>) -> Result<Optio
         AND ($10 IS NULL OR height <= $10) \
         AND ($11 IS NULL OR width * height >= $11) \
         AND ($12 IS NULL OR width * height <= $12) \
+        AND ($13 IS NULL or extension = $13) \
         ORDER BY title \
-        LIMIT $13
+        LIMIT $14
         ",
         search,
         args.in_category,
         args.minsize,
         args.maxsize,
-        args.after,
-        args.before,
+        after,
+        before,
         args.minwidth,
         args.maxwidth,
         args.minheight,
         args.maxheight,
         args.minpixels,
         args.maxpixels,
+        args.ftype,
         lim
     )
     .fetch_all(&pool)
@@ -206,139 +223,6 @@ pub async fn fetch_categories(
     }
 }
 
-pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
-    let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM images ");
-
-    q.push("WHERE LOWER(title) LIKE ");
-    // let s = format!(r"'%{}", args.search.to_lowercase());
-    q.push_bind(format!("'%{}%'", args.search.to_lowercase()));
-
-    // filter for results who have args.in_category as a parent catgeory
-    if let Some(c) = &args.in_category {
-        q.push(
-            r#" AND EXISTS (
-            SELECT 1
-            FROM image_categories as ic
-            JOIN categories ON categories.id  = ic.category_id
-            WHERE ic.image_id = images.id AND categories.title = "#,
-        );
-        q.push_bind(c);
-        q.push("\n)");
-    }
-
-    // filter for images/files who have one of the specified extensions
-    if let Some(v) = &args.ftype {
-        q.push("AND extension IN (");
-        let mut sep = q.separated(", ");
-        for ext in v.iter() {
-            sep.push_bind(ext);
-        }
-        sep.push_unseparated(") ");
-    }
-
-    match (&args.minsize, &args.maxsize) {
-        (Some(min), Some(max)) => {
-            q.push("AND size_ BETWEEN ");
-            q.push_bind(min);
-            q.push(" AND ");
-            q.push_bind(max);
-        }
-        (Some(min), None) => {
-            q.push("AND size_ >= ");
-            q.push_bind(min);
-        }
-        (None, Some(max)) => {
-            q.push("AND size_ <= ");
-            q.push_bind(max);
-        }
-        _ => (),
-    }
-
-    match (&args.after, &args.before) {
-        (Some(min), Some(max)) => {
-            q.push("AND timestamp_ BETWEEN ");
-            q.push_bind(min.timestamp());
-            q.push(" AND ");
-            q.push_bind(max.timestamp());
-        }
-        (Some(min), None) => {
-            q.push("AND timestamp_ >= ");
-            q.push_bind(min.timestamp());
-        }
-        (None, Some(max)) => {
-            q.push("AND timestamp_ <= ");
-            q.push_bind(max.timestamp());
-        }
-        _ => (),
-    }
-
-    match (&args.minwidth, &args.maxwidth) {
-        (Some(min), Some(max)) => {
-            q.push("AND width BETWEEN ");
-            q.push_bind(min);
-            q.push(" AND ");
-            q.push_bind(max);
-        }
-        (Some(min), None) => {
-            q.push("AND width >= ");
-            q.push_bind(min);
-        }
-        (None, Some(max)) => {
-            q.push("AND width <= ");
-            q.push_bind(max);
-        }
-        _ => (),
-    }
-    match (&args.minheight, &args.maxheight) {
-        (Some(min), Some(max)) => {
-            q.push("AND height BETWEEN ");
-            q.push_bind(min);
-            q.push(" AND ");
-            q.push_bind(max);
-        }
-        (Some(min), None) => {
-            q.push("AND height >= ");
-            q.push_bind(min);
-        }
-        (None, Some(max)) => {
-            q.push("AND height <= ");
-            q.push_bind(max);
-        }
-        _ => (),
-    }
-
-    match (&args.minpixels, &args.maxpixels) {
-        (Some(min), Some(max)) => {
-            q.push("AND width * height BETWEEN ");
-            q.push_bind(min);
-            q.push(" AND ");
-            q.push_bind(max);
-        }
-        (Some(min), None) => {
-            q.push("AND width * height >= ");
-            q.push_bind(min);
-        }
-        (None, Some(max)) => {
-            q.push("AND width * height <= ");
-            q.push_bind(max);
-        }
-        _ => (),
-    }
-
-    q.push(" ORDER BY title");
-
-    match &args.limit {
-        Some(lim) if *lim >= 0_i32 => {
-            q.push(" LIMIT ");
-            q.push_bind(lim);
-        }
-        _ => (),
-    }
-
-    q.push(";");
-    q
-}
-
 // MySQL version
 // let ids = sqlx::query_as!(
 //     Uuid,
@@ -356,43 +240,12 @@ pub fn construct_images_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
 //     .fetch_all(&pool)
 //     .await;
 
-fn construct_categories_query(args: &SearchArgs) -> QueryBuilder<Sqlite> {
-    let mut q: QueryBuilder<Sqlite> = QueryBuilder::new("SELECT * FROM categories ");
-    q.push("WHERE LOWER(title) LIKE ");
-    q.push_bind(format!("'%{}%' ", args.search.to_lowercase()));
-    if let Some(ic) = &args.in_category {
-        q.push(
-            r#"
-            AND EXISTS (
-                SELECT 1
-                FROM subcategories as sc
-                JOIN categories AS c ON sc.parent_id = c.id
-                WHERE categories.id = sc.child_id AND c.title = ?
-        ) "#,
-        );
-        q.push_bind(ic);
-    }
-
-    q.push("ORDER BY title");
-
-    match &args.limit {
-        Some(lim) if *lim >= 0 => {
-            q.push(" LIMIT ?");
-            q.push_bind(lim);
-        }
-        _ => (),
-    }
-
-    q
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::StreamExt;
-    use sqlx::ConnectOptions;
-    use sqlx::types::Text;
-    use sqlx::{Connection, Execute, sqlite::SqliteConnectOptions};
+    use crate::cli::Ext;
+    use chrono::TimeZone;
+    use sqlx::sqlite::SqliteConnectOptions;
     use std::{collections::HashSet, io::BufRead};
     fn simple_image_search() -> SearchArgs {
         SearchArgs {
@@ -404,6 +257,8 @@ mod tests {
             },
             in_category: None,
             output: None,
+            save: false,
+            save_as: None,
             limit: None,
             detail_level: Some(DetailLevel {
                 titles: true,
@@ -425,26 +280,6 @@ mod tests {
         }
     }
 
-    fn load_exotic_results() -> HashSet<i64> {
-        use std::fs;
-        use std::io;
-        use std::io::BufRead;
-        let mut ids: HashSet<i64> = HashSet::new();
-        let f = fs::File::open(Path::new("test-data/exotic_search_results.txt"))
-            .expect("unable to open file");
-        let lines = io::BufReader::new(f).lines();
-        for line in lines {
-            match line {
-                Ok(s) => {
-                    let (id_str, _) = s.split_once('|').expect("failed to parse file");
-                    ids.insert(id_str.parse().unwrap());
-                }
-                Err(_) => (),
-            }
-        }
-        ids
-    }
-
     fn load_all_category_titles() -> HashSet<String> {
         use std::fs;
         use std::io;
@@ -458,16 +293,73 @@ mod tests {
             .collect()
     }
 
-    #[tokio::test]
-    async fn test_simple_sql1() {
-        let args: SearchArgs = simple_image_search();
-        let test: QueryBuilder<Sqlite> = construct_images_query(&args);
-        let exp = "SELECT * FROM images WHERE LOWER(title) LIKE ? ORDER BY title";
-        assert_eq!(test.into_string(), exp);
+    fn load_test_ids(fpath: impl AsRef<Path>) -> HashSet<i64> {
+        let lines =
+            io::BufReader::new(fs::File::open(fpath.as_ref()).expect("unable to read test file"))
+                .lines();
+        lines
+            .map_while(|row| match row {
+                Ok(s) => s.parse().ok(),
+                Err(_) => None,
+            })
+            .collect()
     }
 
     #[tokio::test]
     async fn test_static_search1() {
+        let mut args = simple_image_search();
+        args.search = "_".into();
+        args.minwidth = Some(2000);
+        args.maxwidth = Some(2500);
+        args.minsize = Some(1000);
+        args.ftype = Some(Ext::PNG);
+        let pool = sqlx::SqlitePool::connect("test-data/STATIC_TEST.db")
+            .await
+            .expect("unable to connect to database");
+        let images = fetch_images(&args, pool)
+            .await
+            .expect("query failed")
+            .expect("query returned no results");
+        let exp: HashSet<i64> = load_test_ids(Path::new("test-data/test_image_results1.txt"));
+        assert_eq!(images.len(), exp.len());
+        let test_ids: HashSet<i64> = images.into_iter().map(|i| i.id).collect();
+        let diff = exp.symmetric_difference(&test_ids).count();
+        assert_eq!(diff, 0);
+    }
+
+    #[tokio::test]
+    async fn test_static_search2() {
+        // lower bound =  1438176189
+        // upper bound = 1443123052
+        let after = chrono::Utc
+            .timestamp_opt(1438176189, 0)
+            .single()
+            .expect("failed to convert tstamp");
+        let before = chrono::Utc
+            .timestamp_opt(1443123052, 0)
+            .single()
+            .expect("failed to convert tstamp");
+        let mut args = simple_image_search();
+        args.search = "_".into();
+        args.after = Some(after);
+        args.before = Some(before);
+        args.limit = Some(1000);
+        let pool = sqlx::SqlitePool::connect("test-data/STATIC_TEST.db")
+            .await
+            .expect("unable to connect to database");
+        let images = fetch_images(&args, pool)
+            .await
+            .expect("query failed")
+            .expect("query returned no results");
+        let exp: HashSet<i64> = load_test_ids(Path::new("test-data/test_image_results2.txt"));
+        assert_eq!(exp.len(), images.len());
+        let test: HashSet<i64> = images.into_iter().map(|i| i.id).collect();
+        let diff = exp.symmetric_difference(&test).count();
+        assert_eq!(diff, 0);
+    }
+
+    #[tokio::test]
+    async fn test_static_search3() {
         let mut args = simple_image_search();
         args.search = "exotic".into();
         let pool = sqlx::SqlitePool::connect_with(
@@ -479,7 +371,7 @@ mod tests {
             .await
             .expect("query failed")
             .expect("query returned 0 results");
-        let exp_ids: HashSet<i64> = load_exotic_results();
+        let exp_ids: HashSet<i64> = load_test_ids(Path::new("test-data/test_image_results3.txt"));
         assert_eq!(images.len(), exp_ids.len());
         let test_ids: HashSet<i64> = images.into_iter().map(|i| i.id).collect();
         let diff = exp_ids.symmetric_difference(&test_ids).count();
@@ -487,7 +379,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_static_search2() {
+    async fn test_static_search4() {
         let mut args = simple_image_search();
         args.search = "_".into();
         args.result_type.images = false;
@@ -499,7 +391,55 @@ mod tests {
             .await
             .expect("query failed")
             .expect("query returned no results");
-        dbg!(categories);
+        let exp: HashSet<String> = load_all_category_titles();
+        assert_eq!(categories.len(), exp.len());
+        let test: HashSet<String> = categories.into_iter().map(|c| c.title).collect();
+        let diff = exp.symmetric_difference(&test).count();
+        assert_eq!(diff, 0);
+    }
+
+    #[tokio::test]
+    async fn test_write_images1() {
+        let mut args = simple_image_search();
+        let pool = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::default().filename(Path::new("test-data/STATIC_TEST.db")),
+        )
+        .await
+        .expect("unable to connect to database");
+        let images = fetch_images(&args, pool)
+            .await
+            .expect("query failed")
+            .expect("query returned 0 results");
+        let mut wtr: Box<dyn io::Write> = Box::new(
+            fs::File::create(Path::new("test-data/test_write_images1.txt"))
+                .expect("failed to create output file"),
+        );
+        write_images(&mut wtr, &images[..], &None, &None).expect("failed to write image data");
+    }
+
+    #[tokio::test]
+    async fn test_write_categories1() {
+        let mut args = simple_image_search();
+        args.result_type = ResultType {
+            images: false,
+            categories: true,
+            all: false,
+        };
+        let pool = sqlx::SqlitePool::connect_with(
+            SqliteConnectOptions::default().filename(Path::new("test-data/STATIC_TEST.db")),
+        )
+        .await
+        .expect("unable to connect to database");
+        let categories = fetch_categories(&args, pool)
+            .await
+            .expect("query failed")
+            .expect("query returned 0 results");
+        let mut wtr: Box<dyn io::Write> = Box::new(
+            fs::File::create(Path::new("test-data/test_write_categories1.txt"))
+                .expect("failed to create output file"),
+        );
+        write_categories(&mut wtr, &categories[..], &None, &None)
+            .expect("failed to write category data");
     }
 }
 
